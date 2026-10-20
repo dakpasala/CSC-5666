@@ -18,6 +18,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 from sklearn.linear_model import RidgeCV
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import StandardScaler
 
@@ -67,6 +68,17 @@ def ridge_r2(X_tr: np.ndarray, Y_tr: np.ndarray, X_va: np.ndarray, Y_va: np.ndar
                      for k in range(Y_tr.shape[1])])
 
 
+def knn_r2(X_tr: np.ndarray, Y_tr: np.ndarray, X_va: np.ndarray, Y_va: np.ndarray, k: int = 25) -> np.ndarray:
+    """Non-linear probe: k-nearest-neighbour regression on standardized inputs; per-target validation R^2."""
+    if X_tr.shape[1] == 0:
+        return np.full(Y_tr.shape[1], np.nan)
+    sx, sy = StandardScaler().fit(X_tr), StandardScaler().fit(Y_tr)
+    model = KNeighborsRegressor(n_neighbors=k).fit(sx.transform(X_tr), sy.transform(Y_tr))
+    pred, yv = model.predict(sx.transform(X_va)), sy.transform(Y_va)
+    return np.array([r2_score(yv[:, j], pred[:, j]) if Y_tr[:, j].std() > 0 and yv[:, j].std() > 0 else np.nan
+                     for j in range(Y_tr.shape[1])])
+
+
 def probes(emb: dict, seq: np.ndarray, split: np.ndarray, categories: list[str], clock: np.ndarray) -> dict:
     tr, va = split == "train", split == "val"
     counts = category_counts(seq, len(categories))
@@ -81,7 +93,9 @@ def probes(emb: dict, seq: np.ndarray, split: np.ndarray, categories: list[str],
 
     out = {"inputs": {}}
     base_tim = ridge_r2(tot[tr], tim[tr], tot[va], tim[va])
-    out["totals_only_baseline"] = {"timing_r2": summary(base_tim), "timing_clock_r2": summary(base_tim[clock_cols])}
+    base_knn = knn_r2(tot[tr], tim[tr], tot[va], tim[va])
+    out["totals_only_baseline"] = {"timing_r2": summary(base_tim), "timing_clock_r2": summary(base_tim[clock_cols]),
+                                   "knn_timing_clock_r2": summary(base_knn[clock_cols])}
     latents = {"amount": emb["amount_mu"], "timing": emb["timing_mu"],
                "both": np.hstack([emb["amount_mu"], emb["timing_mu"]])}
     for name, Z in latents.items():
@@ -99,6 +113,11 @@ def probes(emb: dict, seq: np.ndarray, split: np.ndarray, categories: list[str],
             "timing_clock_r2": summary(r_tim[clock_cols]),
             "timing_gain_over_true_totals": summary(r_gain) - out["totals_only_baseline"]["timing_r2"],
             "timing_clock_gain_over_true_totals": summary(r_gain[clock_cols]) - out["totals_only_baseline"]["timing_clock_r2"],
+            # Non-linear (kNN, k=25) versions of the same questions.
+            "knn_totals_r2": summary(knn_r2(Z[tr], tot[tr], Z[va], tot[va])),
+            "knn_timing_clock_r2": summary(knn_r2(Z[tr], tim[tr], Z[va], tim[va])[clock_cols]),
+            "knn_timing_clock_gain_over_true_totals": summary(knn_r2(both[tr], tim[tr], both[va], tim[va])[clock_cols])
+                                                     - out["totals_only_baseline"]["knn_timing_clock_r2"],
         }
     return out
 

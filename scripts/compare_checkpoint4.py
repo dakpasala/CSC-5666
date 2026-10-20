@@ -37,8 +37,10 @@ def latest_run(base: Path, name: str) -> Path | None:
     return runs[-1] if runs else None
 
 
-def untrained_reference(cfg_path: Path) -> dict:
+def untrained_reference(cfg_path: Path, seed: int | None = None) -> dict:
     cfg = yaml.safe_load(cfg_path.read_text())
+    if seed is not None:
+        cfg["seed"] = seed
     dcfg = yaml.safe_load((ROOT / cfg["data_config"]).read_text())
     z = np.load(ROOT / dcfg["processed_dir"] / str(cfg["year"]) / "sequences.npz")
     set_seed(cfg["seed"])
@@ -74,6 +76,8 @@ def row(name: str, m: dict, cfg: dict | None) -> dict:
         r[f"totalsR2_from_{lat}"] = get(pr, lat, "totals_r2")
         r[f"clockR2_from_{lat}"] = get(pr, lat, "timing_clock_r2")
         r[f"clock_gain_{lat}"] = get(pr, lat, "timing_clock_gain_over_true_totals")
+        r[f"knn_totalsR2_from_{lat}"] = get(pr, lat, "knn_totals_r2")
+        r[f"knn_clock_gain_{lat}"] = get(pr, lat, "knn_timing_clock_gain_over_true_totals")
     r["mix_totals_follow_amount"] = get(mm, "totals_closer_to_amount_source")
     r["mix_timing_follow_timing"] = get(mm, "timing_closer_to_timing_source")
     mt = s.get("mix_and_match_matched_totals_val")

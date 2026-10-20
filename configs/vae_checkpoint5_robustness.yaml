@@ -1,0 +1,51 @@
+# Checkpoint 5 robustness: full 2022 train split, 3 seeds, four main variants. Validation only; 2023 untouched.
+# Same model, decoder, pairs and loss as Checkpoint 4; lambda_invariance = 1 from the Checkpoint 4 rule.
+name: cp5r
+data_config: configs/data.yaml
+year: 2022
+seed: 42
+device: cpu                # cpu | mps | cuda | auto (cpu default for reproducibility)
+output_dir: outputs/checkpoint5_robustness
+
+data:
+  n_train: null            # full train split (6,509 diaries)
+  n_val: null              # validation diaries for model selection/evaluation; null = full val split
+
+model:
+  emb_dim: 16
+  hidden_dim: 64
+  num_layers: 1
+  z_amount: 8
+  z_timing: 16
+  decoder_hidden: 128
+  decoder_layers: 2
+  n_harmonics: 4
+  amount_head_hidden: 32
+
+loss:
+  beta_amount: 1.0
+  beta_timing: 1.0
+  lambda_invariance: 1.0
+  lambda_amount: 1.0
+
+train:
+  epochs: 40               # ~8k steps; best validation checkpoint kept
+  batch_size: 32
+  lr: 0.001
+  kl_warmup_epochs: 3
+  log_every: 5
+
+eval:
+  n_plot_examples: 8
+  plot_seed: 11
+
+threads: 1                 # one CPU thread per run so variants can run in parallel
+
+pairs:
+  enabled: true
+  p_shift: 0.5             # otherwise block swap
+  shift_min_bins: 6        # 30 min
+  shift_max_bins: 24       # 2 h
+
+# Variants x seeds launched by scripts/run_robustness.sh:
+#   guided (lambda_inv 1, lambda_amt 1), no_invariance, unguided, joint  x  seeds 42, 43, 44
