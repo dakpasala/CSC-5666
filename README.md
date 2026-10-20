@@ -2,7 +2,8 @@
 
 Research prototype that learns separate representations of **activity amounts** and **temporal organization**
 in American Time Use Survey (ATUS) diaries. See `AGENTS.md` for the research plan and `docs/status.md`
-for progress. Only Checkpoint 1 (data preparation) is implemented so far.
+for progress. Checkpoints 1 (data preparation) and 2 (engineered-feature baselines) are implemented;
+no sequence model exists yet.
 
 ## Setup
 
@@ -27,6 +28,10 @@ python scripts/prepare_data.py --year 2023      # integrity check only
 # 3. Example timelines and time-of-day profile (written to outputs/checkpoint1/<year>/)
 python scripts/plot_examples.py --year 2022
 
+# 4. Checkpoint 2 baselines on 2022 train/val (new run dir in outputs/checkpoint2/<timestamp>/)
+python scripts/run_baselines.py
+#    -> docs/baselines_report.md (aggregate summary); interpretation in docs/checkpoint2_notes.md
+
 # Tests (synthetic fixtures + checks on prepared 2022 data when present)
 python -m pytest
 ```
@@ -48,7 +53,9 @@ An aggregate report is also written to `docs/data_report_<year>.md`.
 
 ```text
 configs/   data settings and versioned category mapping
-src/data/  download, ingestion, mapping, validation, binning, split, reports
+src/data/  download, ingestion, mapping, validation, binning, split, reports, transforms
+src/baselines/   totals and engineered timing features
+src/evaluation/  clustering, k selection, timing checks, plotting
 scripts/   command-line entry points
 tests/     pipeline invariants
 docs/      data decisions, data reports, project status

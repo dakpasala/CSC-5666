@@ -1,0 +1,29 @@
+# Checkpoint 2: engineered-feature clustering baselines on 2022 train/val. 2023 is not touched.
+data_config: configs/data.yaml
+year: 2022
+seed: 42
+output_dir: outputs/checkpoint2
+
+baselines:
+  totals:             {use_totals: true,  use_timing: false, pca_variance: null}
+  timing_only:        {use_totals: false, use_timing: true,  pca_variance: null}
+  totals_plus_timing: {use_totals: true,  use_timing: true,  pca_variance: null}
+
+k_selection:
+  ks: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+  n_bootstrap: 10
+  silhouette_sample: null        # null = all validation diaries
+  # Provisional rule: best val silhouette among k with bootstrap ARI >= min_stability and no
+  # validation cluster smaller than min_cluster_share. Fixed before looking at profiles.
+  min_stability: 0.8
+  min_cluster_share: 0.03
+  # Fixed k reported for every baseline so profiles and sensitivity are comparable at equal granularity.
+  # Added after seeing that the rule above picks k=2-3 (mostly work vs non-work days). Not a selected k.
+  comparison_k: 6
+
+timing_checks:
+  shifts_bins: [-24, -12, -6, 6, 12, 24]   # +/- 30 min, 1 h, 2 h at 5-minute bins
+  matched_totals_max_reassigned_minutes: [15, 30, 60, 120]
+
+profiles:
+  n_representatives: 4           # validation diaries closest to each centroid
