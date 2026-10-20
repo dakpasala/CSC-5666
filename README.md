@@ -2,8 +2,8 @@
 
 Research prototype that learns separate representations of **activity amounts** and **temporal organization**
 in American Time Use Survey (ATUS) diaries. See `AGENTS.md` for the research plan and `docs/status.md`
-for progress. Checkpoints 1-4 are implemented: data preparation, engineered-feature baselines, a small end-to-end VAE,
-and separation guidance with ablations (all on 2022; 400-diary training subset; 2023 untouched).
+for progress. Checkpoints 1-5 are complete: data preparation, engineered-feature baselines, an end-to-end VAE, separation
+guidance with ablations, and a pre-registered final evaluation on 2023 (`docs/checkpoint5_results.md`).
 
 ## Setup
 
@@ -40,6 +40,12 @@ python scripts/evaluate_vae.py --run outputs/checkpoint3/<run-dir> # re-evaluate
 # 6. Checkpoint 4 variants (7 runs in parallel, ~35 min on 8 CPU cores) and comparison report
 ./scripts/run_checkpoint4.sh
 python scripts/compare_checkpoint4.py     # -> docs/checkpoint4_report.md, outputs/checkpoint4/comparison.csv
+
+# 7. Checkpoint 5: full-data robustness, lambda sweep, final models, final evaluation
+./scripts/run_robustness.sh && ./scripts/run_lambda_sweep.sh && python scripts/compare_robustness.py
+./scripts/run_final.sh                                   # 12 runs x 80 epochs (~2 h on 8 CPU cores)
+python scripts/evaluate_final.py --target val            # 2022 validation reference
+python scripts/evaluate_final.py --target test --confirm-preregistered   # 2023, only after approval
 
 # Tests (synthetic fixtures + checks on prepared 2022 data when present)
 python -m pytest

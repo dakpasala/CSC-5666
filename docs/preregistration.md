@@ -1,4 +1,4 @@
-# Pre-registration for the final 2023 evaluation (DRAFT — needs approval before 2023 is opened)
+# Pre-registration for the final 2023 evaluation (APPROVED by the project owner 2026-10-20, before 2023 was opened)
 
 Written 2026-10-19, using 2022 validation results only. Once approved, nothing below changes after any
 2023 model result is seen. Deviations must be listed in the final report.
@@ -30,25 +30,25 @@ Written 2026-10-19, using 2022 validation results only. Once approved, nothing b
 
 ## 2. Success criteria (evaluated on 2023, mean over 3 seeds)
 
-Validation values (2022, 40 epochs) are shown for reference. A criterion is "met" if the mean over
+Validation values from the frozen 80-epoch models (`docs/final_results_val.md`) are shown for reference. A criterion is "met" if the mean over
 seeds satisfies it; seed SDs are reported alongside.
 
-| # | Claim | Criterion on 2023 | Validation reference |
+| # | Claim | Criterion on 2023 | 2022 validation reference (80 epochs, λ=0.3) |
 | --- | --- | --- | --- |
-| A1 | Amount latent holds totals | guided kNN totals R² from amount ≥ untrained + 0.05 | 0.846 vs 0.709 (λ=0.3, 40 ep) |
-| A2 | Amount latent excludes timing | guided kNN timing gain over totals from amount ≤ 0.05 | 0.008 (λ=1) |
-| A3 | Timing latent holds timing beyond totals | guided kNN timing gain from timing latent ≥ untrained + 0.10 | 0.220 vs 0.003 |
-| A4 | Decoded timing follows the timing latent | matched-totals mix-and-match ≥ unguided + 0.05 | 0.714 vs 0.636 |
-| B1 | Invariance adds value over amount prediction alone | guided amount pair sensitivity ≤ 0.7 × no_invariance (shift and swap) **and** guided kNN timing gain and matched mix-and-match each ≥ no_invariance − 0.02 | λ=1: sensitivity met; mix 0.714 vs 0.732 met at −0.018 |
-| C1 | Split adds timing information beyond one joint latent | guided timing-latent kNN timing gain ≥ joint + 0.02 | 0.220 vs 0.230 (not met) |
-| D1 | Timing-latent groups are stable | mean pairwise ARI of k=6 cluster assignments across the 3 seeds on the 2023 diaries ≥ 0.5 | 0.25 at 40 epochs (expected **not** met); 80-epoch value to be filled in |
-| D2 | Groups split same-total days by timing | among matched-totals pairs (≤ 120 min), AUC of engineered clock-timing distance for split vs kept-together pairs ≥ 0.60 | to be filled in from 80-epoch validation |
-| R1 | Reconstruction holds across years (descriptive) | report 2023 vs 2022-val CE, accuracy, macro-F1 and transitions; no threshold | — |
+| A1 | Amount latent holds totals | guided kNN totals R² from amount ≥ untrained + 0.05 | 0.844 vs 0.759 → met |
+| A2 | Amount latent excludes timing | guided kNN timing gain over totals from amount ≤ 0.05 | 0.011 → met |
+| A3 | Timing latent holds timing beyond totals | guided kNN timing gain from timing latent ≥ untrained + 0.10 | 0.234 vs 0.103 → met |
+| A4 | Decoded timing follows the timing latent | matched-totals mix-and-match ≥ unguided + 0.05 | 0.770 vs 0.709 → met |
+| B1 | Invariance adds value over amount prediction alone | guided amount pair sensitivity ≤ 0.7 × no_invariance (shift and swap) **and** guided kNN timing gain and matched mix-and-match each ≥ no_invariance − 0.02 | 0.019/0.028 vs 0.030/0.041; 0.234 vs 0.220; 0.770 vs 0.752 → met |
+| C1 | Split adds timing information beyond one joint latent | guided timing-latent kNN timing gain ≥ joint + 0.02 | 0.234 vs 0.245 → not met |
+| D1 | Timing-latent groups are stable | mean pairwise ARI of k=6 assignments across the 3 seeds on the 2023 diaries ≥ 0.5 | 0.255 → not met |
+| D2 | Groups split same-total days by timing | among matched-totals pairs (≤ 120 min), AUC of engineered clock-timing distance for split vs kept-together pairs ≥ 0.60 | 0.594 → not met (narrowly) |
+| R1 | Reconstruction holds across years (descriptive) | report 2023 vs 2022-val CE, accuracy, macro-F1 and transitions; no threshold | val CE 0.457, acc 0.843, macro-F1 0.667, 7.1 transitions |
 
 The original D2 (share of matched pairs split, compared with engineered clusters) was dropped before any
 test result: unstable clusters split pairs often by chance, so a high share was not evidence.
 
-Expected from validation: A1-A4 likely met; B1 borderline; D1 likely **not** met; C1 likely **not** met (the split gives an
+Expected from validation: A1-A4 and B1 met; C1, D1 and D2 **not** met (the split gives an
 interpretable division of labour, not more timing information than a joint latent). Any outcome is
 reported as observed.
 

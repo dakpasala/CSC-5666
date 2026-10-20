@@ -14,5 +14,12 @@ for seed in 42 43 44; do
   echo "no_invariance_s$seed seed=$seed loss.lambda_invariance=0.0"
   echo "unguided_s$seed seed=$seed loss.lambda_invariance=0.0 loss.lambda_amount=0.0"
   echo "joint_s$seed seed=$seed model.z_amount=0 model.z_timing=24 loss.lambda_invariance=0.0 loss.lambda_amount=0.0"
+done | while read -r name rest; do
+  # Skip runs that already finished (a completed run has eval_best.json), so the script can be re-launched.
+  if ls -d outputs/checkpoint5_final/"$name"-*/eval_best.json >/dev/null 2>&1; then
+    echo "skip $name (already finished)" >&2
+  else
+    echo "$name $rest"
+  fi
 done | xargs -P 6 -L 1 bash -c 'name=$0; "$PY" scripts/train_vae.py --config "$CFG" --set "name=$name" "$@" > "$LOG/$name.log" 2>&1 || echo "FAILED $name"'
 echo "final runs finished"

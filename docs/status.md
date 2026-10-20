@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
 ## Completed
 
@@ -27,14 +27,16 @@ Last updated: 2026-10-19
   weak (59% vs 54-58% on matched-totals mix-and-match; linear probes at the untrained floor).
   λ_invariance = 1 by the pre-registered rule. Notes: `docs/checkpoint4_notes.md`.
 
-## In progress: Checkpoint 5
+- **Checkpoint 5: evaluate the research claim.** Full-data robustness (3 seeds), kNN probes, full-data
+  λ sweep (→ 0.3), 80-epoch frozen models, pre-registration approved by the project owner, then a single
+  2023 test. 8 of 11 criteria met, the same pattern as validation: separation works and transfers across
+  years; the split adds no timing information beyond a joint latent; learned groups are interpretable but
+  unstable, and engineered timing features give more stable groups. `docs/checkpoint5_results.md`.
 
-- Done: full-data robustness (4 variants × 3 seeds), kNN probes, full-data λ sweep → λ = 0.3,
-  k = 6 primary (decided with the user), unstandardized latent clustering. Notes:
-  `docs/checkpoint5_robustness_notes.md`.
-- Running: 12 final 80-epoch models (`scripts/run_final.sh`, `configs/vae_final.yaml`).
-- Next: `scripts/evaluate_final.py --target val` for validation references → user approves
-  `docs/preregistration.md` → `--target test --confirm-preregistered` (2023, once).
+## Next
+
+- **Checkpoint 6: report and presentation.** Results table, model diagram, example timelines,
+  limitations, reproducible run guide. Verify deadlines and format against the course assignment PDF.
 
 ## Open decisions
 

@@ -7,56 +7,59 @@ All fitting (probes, scalers, centroids) on 2022 train-split data only. Unweight
 
 | # | Criterion | Value | Threshold | Met |
 | --- | --- | ---: | ---: | :---: |
-| A1 | guided kNN totals R² (amount) ≥ untrained + 0.05 | 0.849 | 0.759 | yes |
-| A2 | guided kNN timing gain from amount ≤ 0.05 | 0.008 | 0.050 | yes |
-| A3 | guided kNN timing gain from timing ≥ untrained + 0.10 | 0.220 | 0.103 | yes |
-| A4 | matched mix-and-match ≥ unguided + 0.05 | 0.714 | 0.686 | yes |
-| B1a | amount sensitivity (shift) ≤ 0.7 × no_invariance | 0.011 | 0.031 | yes |
-| B1b | amount sensitivity (swap) ≤ 0.7 × no_invariance | 0.017 | 0.043 | yes |
-| B1c | kNN timing gain ≥ no_invariance − 0.02 | 0.220 | 0.211 | yes |
-| B1d | matched mix-and-match ≥ no_invariance − 0.02 | 0.714 | 0.712 | yes |
-| C1 | guided timing gain ≥ joint + 0.02 | 0.220 | 0.250 | no |
-| D1 | guided cross-seed ARI (k=6) ≥ 0.5 | 0.023 | 0.500 | no |
-| D2 | guided matched-pair split share ≥ engineered timing-only | 0.742 | 0.335 | yes |
+| A1 | guided kNN totals R² (amount) ≥ untrained + 0.05 | 0.844 | 0.759 | yes |
+| A2 | guided kNN timing gain from amount ≤ 0.05 | 0.011 | 0.050 | yes |
+| A3 | guided kNN timing gain from timing ≥ untrained + 0.10 | 0.234 | 0.103 | yes |
+| A4 | matched mix-and-match ≥ unguided + 0.05 | 0.770 | 0.709 | yes |
+| B1a | amount sensitivity (shift) ≤ 0.7 × no_invariance | 0.019 | 0.030 | yes |
+| B1b | amount sensitivity (swap) ≤ 0.7 × no_invariance | 0.028 | 0.041 | yes |
+| B1c | kNN timing gain ≥ no_invariance − 0.02 | 0.234 | 0.220 | yes |
+| B1d | matched mix-and-match ≥ no_invariance − 0.02 | 0.770 | 0.752 | yes |
+| C1 | guided timing gain ≥ joint + 0.02 | 0.234 | 0.245 | no |
+| D1 | guided cross-seed ARI (k=6) ≥ 0.5 | 0.255 | 0.500 | no |
+| D2 | guided timing-split AUC on matched-totals pairs ≥ 0.60 | 0.594 | 0.600 | no |
 
 ## Metrics by model
 
 | Metric | guided | no_invariance | unguided | joint | untrained |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| val_CE | 0.580 ± 0.014 | 0.521 ± 0.009 | 0.499 ± 0.007 | 0.499 ± 0.016 | — |
-| val_acc | 0.805 ± 0.004 | 0.823 ± 0.004 | 0.832 ± 0.003 | 0.832 ± 0.005 | — |
-| val_macroF1 | 0.588 ± 0.007 | 0.623 ± 0.008 | 0.637 ± 0.007 | 0.639 ± 0.013 | — |
-| transitions_pred | 5.598 ± 0.124 | 6.024 ± 0.125 | 6.431 ± 0.087 | 6.418 ± 0.012 | — |
-| amount_sens_shift | 0.011 ± 0.000 | 0.044 ± 0.003 | 0.264 ± 0.010 | — | 0.012 ± 0.002 |
-| amount_sens_swap | 0.017 ± 0.002 | 0.061 ± 0.003 | 0.258 ± 0.056 | — | 0.009 ± 0.000 |
-| knn_totalsR2_from_amount | 0.849 ± 0.002 | 0.825 ± 0.007 | 0.347 ± 0.051 | — | 0.709 ± 0.023 |
-| knn_clock_gain_amount | 0.008 ± 0.003 | 0.019 ± 0.005 | 0.119 ± 0.015 | — | 0.001 ± 0.001 |
-| knn_clock_gain_timing | 0.220 ± 0.031 | 0.231 ± 0.014 | 0.206 ± 0.017 | 0.230 ± 0.013 | 0.003 ± 0.000 |
-| matched_mix_timing_follow_timing | 0.714 ± 0.021 | 0.732 ± 0.010 | 0.636 ± 0.025 | — | 0.501 ± 0.002 |
-| mix_totals_follow_amount | 0.968 ± 0.004 | 0.955 ± 0.008 | 0.380 ± 0.300 | — | 0.497 ± 0.023 |
+| val_CE | 0.457 ± 0.005 | 0.447 ± 0.006 | 0.415 ± 0.013 | 0.424 ± 0.016 | — |
+| val_acc | 0.843 ± 0.003 | 0.846 ± 0.002 | 0.858 ± 0.003 | 0.854 ± 0.005 | — |
+| val_macroF1 | 0.667 ± 0.006 | 0.672 ± 0.004 | 0.697 ± 0.004 | 0.688 ± 0.011 | — |
+| transitions_pred | 7.082 ± 0.115 | 7.149 ± 0.114 | 7.658 ± 0.093 | 7.537 ± 0.127 | — |
+| amount_sens_shift | 0.019 ± 0.000 | 0.043 ± 0.002 | 0.288 ± 0.026 | — | 0.012 ± 0.002 |
+| amount_sens_swap | 0.028 ± 0.002 | 0.059 ± 0.003 | 0.314 ± 0.047 | — | 0.009 ± 0.000 |
+| knn_totalsR2_from_amount | 0.844 ± 0.002 | 0.824 ± 0.009 | 0.334 ± 0.069 | — | 0.709 ± 0.023 |
+| knn_clock_gain_amount | 0.011 ± 0.001 | 0.017 ± 0.004 | 0.103 ± 0.011 | — | 0.001 ± 0.001 |
+| knn_clock_gain_timing | 0.234 ± 0.012 | 0.240 ± 0.009 | 0.204 ± 0.009 | 0.225 ± 0.014 | 0.003 ± 0.000 |
+| matched_mix_timing_follow_timing | 0.770 ± 0.008 | 0.772 ± 0.005 | 0.659 ± 0.018 | — | 0.501 ± 0.002 |
+| mix_totals_follow_amount | 0.981 ± 0.002 | 0.972 ± 0.004 | 0.383 ± 0.305 | — | 0.497 ± 0.023 |
 
 ## Groups (k=6)
 
 Cross-seed ARI: agreement of cluster assignments for the same diaries across seeds (engineered features:
 across k-means seeds only). Split share: matched-totals pairs (≤ 120 min) placed in different groups.
 
-| Representation | Cross-seed ARI | Matched-pair split share | Pairs |
-| --- | ---: | ---: | ---: |
-| guided | 0.023 ± 0.002 | 0.742 ± 0.025 | 740 |
-| no_invariance | 0.036 ± 0.002 | 0.776 ± 0.012 | 740 |
-| unguided | 0.087 ± 0.054 | 0.609 ± 0.092 | 740 |
-| joint | 0.123 ± 0.024 | 0.591 ± 0.043 | 740 |
-| eng_totals | 0.794 ± 0.128 | 0.051 ± 0.005 | 740 |
-| eng_timing_only | 0.747 ± 0.071 | 0.335 ± 0.013 | 740 |
-| eng_totals_plus_timing | 0.790 ± 0.128 | 0.291 ± 0.012 | 740 |
+Timing-split AUC: do split pairs differ more in engineered clock timing than pairs kept together (0.5 = no).
+Engineered timing features score high on that AUC partly by construction (same features).
+
+| Representation | Cross-seed ARI | Matched-pair split share | Timing-split AUC | Pairs |
+| --- | ---: | ---: | ---: | ---: |
+| guided | 0.255 ± 0.006 | 0.755 ± 0.011 | 0.594 ± 0.025 | 740 |
+| no_invariance | 0.130 ± 0.048 | 0.765 ± 0.010 | 0.575 ± 0.023 | 740 |
+| unguided | 0.166 ± 0.059 | 0.558 ± 0.083 | 0.571 ± 0.014 | 740 |
+| joint | 0.294 ± 0.014 | 0.476 ± 0.061 | 0.591 ± 0.034 | 740 |
+| eng_totals | 0.794 ± 0.128 | 0.051 ± 0.005 | 0.508 ± 0.031 | 740 |
+| eng_timing_only | 0.747 ± 0.071 | 0.335 ± 0.013 | 0.733 ± 0.015 | 740 |
+| eng_totals_plus_timing | 0.790 ± 0.128 | 0.291 ± 0.012 | 0.731 ± 0.003 | 740 |
 
 ## Guided timing-latent groups (seed 42): descriptions of days, not people
 
 |   cluster |   n |   share |   pct_weekend |   min_sleep |   min_work |   min_leisure_social |   min_household |   min_travel |   min_education |   min_other | center_sleep   | center_work   | center_eating_drinking   |
 |----------:|----:|--------:|--------------:|------------:|-----------:|---------------------:|----------------:|-------------:|----------------:|------------:|:---------------|:--------------|:-------------------------|
-|         0 | 157 |     0.1 |          42.7 |       527.3 |      177.1 |                240.4 |           111.7 |         88.4 |             4.1 |        12.1 | 02:23          | 13:17         | 15:23                    |
-|         1 | 402 |     0.2 |          54.0 |       568.5 |       99.5 |                340.7 |           143.7 |         53.2 |            15.3 |        24.3 | 02:53          | 12:19         | 14:13                    |
-|         2 | 403 |     0.2 |          45.4 |       524.8 |      182.4 |                322.4 |           133.8 |         57.1 |             4.7 |        18.8 | 02:36          | 12:07         | 15:08                    |
-|         3 | 169 |     0.1 |          50.3 |       536.2 |       62.1 |                360.2 |           143.1 |         64.5 |            12.1 |        19.5 | 03:08          | 11:08         | 14:47                    |
-|         4 | 278 |     0.2 |          47.8 |       555.2 |      206.4 |                305.9 |           107.9 |         62.1 |            11.5 |        21.3 | 02:57          | 13:58         | 14:07                    |
-|         5 | 218 |     0.1 |          46.3 |       525.0 |      182.1 |                295.7 |           141.7 |         57.9 |             9.9 |        12.0 | 02:42          | 11:37         | 15:45                    |
+|         0 | 276 |     0.2 |          48.6 |       536.0 |      150.2 |                274.1 |           161.7 |         66.1 |            12.3 |        13.4 | 02:44          | 12:35         | 14:55                    |
+|         1 | 127 |     0.1 |          55.9 |       587.6 |      106.4 |                306.7 |           111.6 |         61.0 |             5.7 |        22.8 | 01:56          | 10:06         | 15:03                    |
+|         2 | 363 |     0.2 |          39.1 |       528.9 |      198.4 |                283.1 |           125.2 |         64.3 |             5.1 |        21.9 | 01:59          | 11:52         | 14:57                    |
+|         3 | 300 |     0.2 |          54.0 |       538.5 |      102.4 |                447.7 |           116.9 |         51.3 |             8.2 |        15.6 | 03:12          | 12:11         | 13:05                    |
+|         4 | 240 |     0.1 |          52.5 |       551.2 |      166.5 |                305.8 |           124.1 |         62.3 |            23.9 |        19.9 | 04:30          | 16:20         | 15:47                    |
+|         5 | 321 |     0.2 |          47.0 |       541.6 |      159.4 |                280.2 |           140.9 |         60.6 |             6.0 |        22.1 | 02:22          | 12:15         | 15:21                    |

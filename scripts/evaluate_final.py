@@ -165,6 +165,7 @@ def main() -> None:
         ids = z22["case_ids"][z22["split"] == "val"] if args.target == "val" else ztg["case_ids"]
         weekend = meta.loc[ids, "TUDIARYDAY"].isin([1, 7]).to_numpy()
         prof["pct_weekend"] = [round(100 * weekend[lab == c].mean(), 1) for c in prof["cluster"]]
+        prof["share"] = (prof["share"] * 100).round(1)   # percent of target diaries
         prof.to_csv(out_dir / "profiles_guided_s42.csv", index=False)
         keep = ["cluster", "n", "share", "pct_weekend", "min_sleep", "min_work", "min_leisure_social", "min_household",
                 "min_travel", "min_education", "min_other", "center_sleep", "center_work", "center_eating_drinking"]
