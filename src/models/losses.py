@@ -47,3 +47,19 @@ def schedule_loss(out: dict[str, torch.Tensor], seq: torch.Tensor, w: LossWeight
              + w.lambda_invariance * invariance + w.lambda_amount * amount_pred)
     return {"loss": total, "recon": recon, "kl_amount": kl_a, "kl_timing": kl_t,
             "amount_invariance": invariance, "amount_prediction": amount_pred}
+
+
+def paired_loss(model, x: torch.Tensor, x_t: torch.Tensor, w: LossWeights, kl_scale: float = 1.0,
+                sample: bool = True) -> dict[str, torch.Tensor]:
+    """Loss on a diary batch and its total-preserving transforms.
+
+    Reconstruction, KL and amount prediction are averaged over originals and transforms together;
+    invariance compares the amount posterior means of each diary with its own transform.
+    """
+    B = x.shape[0]
+    out = model(torch.cat([x, x_t]), sample=sample)
+    terms = schedule_loss(out, torch.cat([x, x_t]), w, kl_scale)
+    inv = (out["amount_mu"][:B] - out["amount_mu"][B:]).pow(2).sum(1).mean()
+    terms["amount_invariance"] = inv
+    terms["loss"] = terms["loss"] + w.lambda_invariance * inv
+    return terms

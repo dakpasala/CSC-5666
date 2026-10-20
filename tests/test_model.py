@@ -69,3 +69,16 @@ def test_checkpoint_reload_reproduces_posterior_means(tmp_path):
     a, b = posterior_means(m, x), posterior_means(r, x)
     for k in a:
         np.testing.assert_allclose(a[k], b[k], atol=1e-6)
+
+
+def test_paired_loss_invariance_and_joint_model():
+    from src.models.losses import paired_loss
+    m, x = small_model(), toy_days(4)
+    t = paired_loss(m, x, x.roll(12, dims=1), LossWeights(lambda_invariance=1.0, lambda_amount=1.0))
+    assert torch.isfinite(t["loss"]) and t["amount_invariance"] > 0
+    same = paired_loss(m, x, x, LossWeights(lambda_invariance=1.0), sample=False)
+    assert same["amount_invariance"].item() == 0.0
+    j = small_model(z_amount=0, z_timing=24)
+    out = j(x)
+    assert out["amount_mu"].shape == (4, 0) and out["logits"].shape == (4, T, C)
+    assert paired_loss(j, x, x.roll(12, dims=1), LossWeights(lambda_invariance=1.0))["amount_invariance"] == 0

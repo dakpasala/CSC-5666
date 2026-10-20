@@ -1,0 +1,59 @@
+# Checkpoint 4: two-latent VAE with total-preserving pairs, amount invariance and amount prediction.
+# Same 400-diary subset, model size, decoder and optimisation budget as Checkpoint 3. Variants differ only by --set overrides.
+name: cp4
+data_config: configs/data.yaml
+year: 2022
+seed: 42
+device: cpu                # cpu | mps | cuda | auto (cpu default for reproducibility)
+output_dir: outputs/checkpoint4
+
+data:
+  n_train: 400             # random subset of the train split (seeded); null = full split
+  n_val: null              # validation diaries for model selection/evaluation; null = full val split
+
+model:
+  emb_dim: 16
+  hidden_dim: 64
+  num_layers: 1
+  z_amount: 8
+  z_timing: 16
+  decoder_hidden: 128
+  decoder_layers: 2
+  n_harmonics: 4
+  amount_head_hidden: 32
+
+loss:
+  beta_amount: 1.0
+  beta_timing: 1.0
+  lambda_invariance: 1.0
+  lambda_amount: 1.0
+
+train:
+  epochs: 200
+  batch_size: 32
+  lr: 0.001
+  kl_warmup_epochs: 20
+  log_every: 20
+
+eval:
+  n_plot_examples: 8
+  plot_seed: 11
+
+threads: 1                 # one CPU thread per run so variants can run in parallel
+
+pairs:
+  enabled: true
+  p_shift: 0.5             # otherwise block swap
+  shift_min_bins: 6        # 30 min
+  shift_max_bins: 24       # 2 h
+
+# Variants (all run with this file plus --set overrides; see scripts/run_checkpoint4.sh):
+#   guided_inv{0.1,1,10}  lambda_invariance in {0.1, 1, 10}, lambda_amount 1
+#   no_invariance         lambda_invariance 0, lambda_amount 1   (separation constraint removed)
+#   invariance_only       lambda_invariance 1, lambda_amount 0   (isolates the amount-prediction term)
+#   unguided              lambda_invariance 0, lambda_amount 0   (pairs as augmentation only)
+#   joint                 z_amount 0, z_timing 24, no guidance   (single latent, same total size)
+#
+# Rule for choosing lambda_invariance, fixed BEFORE any Checkpoint 4 run: among guided runs, pick the
+# lowest validation amount pair-sensitivity (mean of shift and swap medians) whose validation
+# reconstruction cross-entropy is within 5% of no_invariance. Validation data only.

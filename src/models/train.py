@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import random
 import time
+from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
 import torch
 
-from .losses import LossWeights, schedule_loss
+from .losses import LossWeights, paired_loss, schedule_loss
 from .vae import ScheduleVAE, VAEConfig
 
 
@@ -42,13 +44,18 @@ def kl_scale_at(epoch: int, warmup_epochs: int) -> float:
 
 
 @torch.no_grad()
-def evaluate_loss(model: ScheduleVAE, seq: torch.Tensor, w: LossWeights, batch_size: int = 512) -> dict[str, float]:
-    """Full-weight loss terms on posterior means (no sampling), averaged over diaries."""
+def evaluate_loss(model: ScheduleVAE, seq: torch.Tensor, w: LossWeights, batch_size: int = 512,
+                  seq_pair: torch.Tensor | None = None) -> dict[str, float]:
+    """Full-weight loss terms on posterior means (no sampling), averaged over diaries.
+    With `seq_pair`, uses the paired objective on fixed validation pairs."""
     model.eval()
     sums, n = {}, 0
     for i in range(0, len(seq), batch_size):
         b = seq[i:i + batch_size]
-        terms = schedule_loss(model(b, sample=False), b, w)
+        if seq_pair is None:
+            terms = schedule_loss(model(b, sample=False), b, w)
+        else:
+            terms = paired_loss(model, b, seq_pair[i:i + batch_size], w, sample=False)
         for k, v in terms.items():
             sums[k] = sums.get(k, 0.0) + float(v) * len(b)
         n += len(b)
@@ -57,8 +64,13 @@ def evaluate_loss(model: ScheduleVAE, seq: torch.Tensor, w: LossWeights, batch_s
 
 def train(model: ScheduleVAE, seq_tr: torch.Tensor, seq_va: torch.Tensor, w: LossWeights, epochs: int,
           batch_size: int, lr: float, warmup_epochs: int, seed: int, ckpt_dir: Path,
-          log_every: int = 10) -> list[dict]:
-    """Adam training. Saves `best.pt` (lowest validation loss at full KL weight) and `last.pt`."""
+          log_every: int = 10, pair_fn: Callable[[np.ndarray], tuple[np.ndarray, list[dict]]] | None = None,
+          seq_va_pair: torch.Tensor | None = None) -> list[dict]:
+    """Adam training. Saves `best.pt` (lowest validation loss at full KL weight) and `last.pt`.
+
+    With `pair_fn`, every training batch is paired with fresh total-preserving transforms and the paired
+    objective is used; validation then uses the fixed pairs in `seq_va_pair`. Transform types are counted.
+    """
     opt = torch.optim.Adam(model.parameters(), lr=lr)
     gen = torch.Generator().manual_seed(seed)
     history, best = [], float("inf")
@@ -67,10 +79,15 @@ def train(model: ScheduleVAE, seq_tr: torch.Tensor, seq_va: torch.Tensor, w: Los
         t0 = time.time()
         scale = kl_scale_at(epoch, warmup_epochs)
         perm = torch.randperm(len(seq_tr), generator=gen)
-        sums, n = {}, 0
+        sums, n, kinds = {}, 0, Counter()
         for i in range(0, len(seq_tr), batch_size):
             b = seq_tr[perm[i:i + batch_size]]
-            terms = schedule_loss(model(b), b, w, kl_scale=scale)
+            if pair_fn is None:
+                terms = schedule_loss(model(b), b, w, kl_scale=scale)
+            else:
+                bt, params = pair_fn(b.cpu().numpy())
+                kinds.update(p["type"] for p in params)
+                terms = paired_loss(model, b, torch.from_numpy(bt).long().to(b.device), w, kl_scale=scale)
             opt.zero_grad()
             terms["loss"].backward()
             opt.step()
@@ -79,14 +96,16 @@ def train(model: ScheduleVAE, seq_tr: torch.Tensor, seq_va: torch.Tensor, w: Los
             n += len(b)
         row = {"epoch": epoch + 1, "kl_scale": scale, "seconds": round(time.time() - t0, 3),
                **{f"train_{k}": v / n for k, v in sums.items()},
-               **{f"val_{k}": v for k, v in evaluate_loss(model, seq_va, w).items()}}
+               **{f"val_{k}": v for k, v in evaluate_loss(model, seq_va, w, seq_pair=seq_va_pair).items()},
+               **{f"pairs_{k}": c for k, c in kinds.items()}}
         history.append(row)
         if row["val_loss"] < best and scale == 1.0:
             best = row["val_loss"]
             save_checkpoint(ckpt_dir / "best.pt", model, extra={"epoch": epoch + 1, "val_loss": best})
         if log_every and ((epoch + 1) % log_every == 0 or epoch == 0):
             print(f"epoch {epoch + 1:4d}  train {row['train_loss']:.4f}  val {row['val_loss']:.4f}  "
-                  f"recon {row['val_recon']:.4f}  KLa {row['val_kl_amount']:.4f}  KLt {row['val_kl_timing']:.4f}")
+                  f"recon {row['val_recon']:.4f}  KLa {row['val_kl_amount']:.4f}  KLt {row['val_kl_timing']:.4f}  "
+                  f"inv {row['val_amount_invariance']:.4f}  amt {row['val_amount_prediction']:.4f}", flush=True)
     save_checkpoint(ckpt_dir / "last.pt", model, extra={"epoch": epochs})
     return history
 

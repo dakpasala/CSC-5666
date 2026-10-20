@@ -65,3 +65,15 @@ def test_cluster_pipeline_deterministic():
     a = ClusterPipeline(3, seed=42).fit(X).predict(X)
     b = ClusterPipeline(3, seed=42).fit(X).predict(X)
     assert np.array_equal(a, b)
+
+
+def test_pairs_preserve_counts_and_record_params():
+    from src.data.pairs import PairConfig, make_pairs
+    seq = np.stack([A, B, A])
+    out, params = make_pairs(seq, np.random.default_rng(3), PairConfig(), len(CATS))
+    assert out.shape == seq.shape and len(params) == 3
+    for s, t, p in zip(seq, out, params):
+        assert np.array_equal(np.bincount(s, minlength=5), np.bincount(t, minlength=5))
+        assert p["type"] in ("circular_shift", "block_swap") and not np.array_equal(s, t)
+        if p["type"] == "circular_shift":
+            assert 6 <= abs(p["shift"]) <= 24

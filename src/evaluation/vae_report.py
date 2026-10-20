@@ -15,6 +15,7 @@ import torch
 import yaml
 
 from src.evaluation.plotting import GRID, INK, MUTED, palette, plt, timeline_rows
+from src.evaluation.separation import evaluate_separation
 from src.evaluation.reconstruction import latent_diagnostics, position_majority, reconstruction_metrics
 from src.models.train import load_checkpoint, posterior_means, reconstruct
 
@@ -63,9 +64,12 @@ def evaluate_run(run: Path, which: str = "best.pt") -> dict:
                         in_train_subset=np.isin(z["case_ids"], ids["train"]), **emb)
     va_mask = z["split"] == "val"
     metrics["latents_val"] = {
-        "amount": latent_diagnostics(emb["amount_mu"][va_mask], emb["amount_logvar"][va_mask]),
+        "amount": (latent_diagnostics(emb["amount_mu"][va_mask], emb["amount_logvar"][va_mask])
+                   if emb["amount_mu"].shape[1] else None),
         "timing": latent_diagnostics(emb["timing_mu"][va_mask], emb["timing_logvar"][va_mask]),
     }
+
+    metrics["separation"] = evaluate_separation(model, seq_all, z["split"], cats, z["clock_features"], emb)
 
     # Decoder reliance on each latent: replace one latent with its validation mean and re-decode.
     with torch.no_grad():

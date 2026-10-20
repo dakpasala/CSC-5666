@@ -20,12 +20,18 @@ Last updated: 2026-10-19
   0.53), macro-F1 0.43 (0.12), but strong oversmoothing (4.7 vs 14.8 transitions/day). Checkpoint reload
   reproduces embeddings and evaluation exactly; embeddings exported. Notes: `docs/checkpoint3_notes.md`.
 
+- **Checkpoint 4: separation guidance.** Paired training (shift/swap), amount invariance and amount
+  prediction; 7 variants plus Checkpoint 3 and untrained references, one seed, 400-diary subset.
+  Invariance works (amount pair-sensitivity 0.08-0.14 → 0.01-0.02) and amount prediction prevents collapse,
+  at ~4% reconstruction cost. Evidence that the timing latent captures timing better than alternatives is
+  weak (59% vs 54-58% on matched-totals mix-and-match; linear probes at the untrained floor).
+  λ_invariance = 1 by the pre-registered rule. Notes: `docs/checkpoint4_notes.md`.
+
 ## Next
 
-- **Checkpoint 4: separation guidance.** Train on paired diaries (circular shift and block swap from
-  `src/data/transforms.py`), turn on amount invariance and amount prediction, and compare with the
-  constraint removed and with a joint-latent model of equal total size. Report reconstruction and collapse
-  diagnostics side by side.
+- **Before Checkpoint 5:** 3 seeds on the full 2022 train split for guided (λ=1), no_invariance, unguided
+  and joint; add non-linear probes; fix the k-selection rule and success criteria on validation before
+  opening 2023.
 
 ## Open decisions
 
@@ -36,5 +42,6 @@ Last updated: 2026-10-19
 - Final k-selection rule (current rule gives k=2-3; see checkpoint 2 notes). Fix before Checkpoint 5.
 - Whether to add a non-linear totals->timing predictor and a block-weighted totals+timing baseline.
 - How to address oversmoothing (more data first; then beta/decoder changes only if diagnostics justify).
+- Whether to broaden transforms (larger shifts) or try timing-target supervision as a documented experiment.
 - Survey weights: prototype is unweighted; weighted sensitivity analysis needed before any
   population-facing statement.

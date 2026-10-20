@@ -2,8 +2,8 @@
 
 Research prototype that learns separate representations of **activity amounts** and **temporal organization**
 in American Time Use Survey (ATUS) diaries. See `AGENTS.md` for the research plan and `docs/status.md`
-for progress. Checkpoints 1 (data preparation), 2 (engineered-feature baselines) and 3 (a small end-to-end VAE
-on a 400-diary subset) are implemented. Separation guidance (Checkpoint 4) is not yet implemented.
+for progress. Checkpoints 1-4 are implemented: data preparation, engineered-feature baselines, a small end-to-end VAE,
+and separation guidance with ablations (all on 2022; 400-diary training subset; 2023 untouched).
 
 ## Setup
 
@@ -36,6 +36,10 @@ python scripts/run_baselines.py
 python scripts/train_vae.py --config configs/vae_smoke.yaml        # seconds; pipeline check only
 python scripts/train_vae.py --config configs/vae_checkpoint3.yaml  # ~6 min on CPU
 python scripts/evaluate_vae.py --run outputs/checkpoint3/<run-dir> # re-evaluate from checkpoint alone
+
+# 6. Checkpoint 4 variants (7 runs in parallel, ~35 min on 8 CPU cores) and comparison report
+./scripts/run_checkpoint4.sh
+python scripts/compare_checkpoint4.py     # -> docs/checkpoint4_report.md, outputs/checkpoint4/comparison.csv
 
 # Tests (synthetic fixtures + checks on prepared 2022 data when present)
 python -m pytest

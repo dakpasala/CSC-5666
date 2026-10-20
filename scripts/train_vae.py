@@ -27,6 +27,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from src.data.pairs import PairConfig, make_pairs  # noqa: E402
 from src.evaluation.vae_report import evaluate_run  # noqa: E402
 from src.models.losses import LossWeights  # noqa: E402
 from src.models.train import (  # noqa: E402
@@ -38,8 +39,19 @@ from src.models.vae import ScheduleVAE, VAEConfig, parameter_count  # noqa: E402
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=Path, default=ROOT / "configs/vae_checkpoint3.yaml")
+    ap.add_argument("--set", nargs="*", default=[], metavar="KEY=VALUE",
+                    help="override config entries, e.g. name=foo loss.lambda_invariance=10 model.z_amount=0")
     args = ap.parse_args()
     cfg = yaml.safe_load(args.config.read_text())
+    for item in args.set:
+        key, value = item.split("=", 1)
+        node = cfg
+        *parents, leaf = key.split(".")
+        for k in parents:
+            node = node.setdefault(k, {})
+        node[leaf] = yaml.safe_load(value)
+    if cfg.get("threads"):
+        torch.set_num_threads(int(cfg["threads"]))
     dcfg = yaml.safe_load((ROOT / cfg["data_config"]).read_text())
     seed = cfg["seed"]
     set_seed(seed)
@@ -73,8 +85,21 @@ def main() -> None:
     seq_va = torch.from_numpy(z["seq"][va_idx]).long().to(device)
     w = LossWeights(**cfg["loss"])
     t = cfg["train"]
+    pair_fn, seq_va_pair = None, None
+    pcfg_raw = cfg.get("pairs") or {}
+    if pcfg_raw.get("enabled"):
+        # Pairs are built inside each split after splitting: train pairs fresh every batch, validation
+        # pairs fixed once (seeded) for model selection. Transform types are logged per epoch.
+        pcfg = PairConfig(**{k: v for k, v in pcfg_raw.items() if k != "enabled"})
+        C = len(z["categories"])
+        pair_rng = np.random.default_rng(seed + 1)
+        pair_fn = lambda b: make_pairs(b, pair_rng, pcfg, C)  # noqa: E731
+        va_t, va_params = make_pairs(z["seq"][va_idx], np.random.default_rng(seed + 2), pcfg, C)
+        seq_va_pair = torch.from_numpy(va_t).long().to(device)
+        (run / "val_pairs_params.json").write_text(json.dumps(
+            {"pair_config": pcfg.to_dict(), "case_ids": z["case_ids"][va_idx].tolist(), "params": va_params}))
     history = train(model, seq_tr, seq_va, w, t["epochs"], t["batch_size"], t["lr"], t["kl_warmup_epochs"],
-                    seed, run, t["log_every"])
+                    seed, run, t["log_every"], pair_fn=pair_fn, seq_va_pair=seq_va_pair)
     pd.DataFrame(history).to_csv(run / "history.csv", index=False)
 
     # Reload check: the model still in memory (final weights) vs the same weights reloaded from last.pt.
@@ -82,7 +107,7 @@ def main() -> None:
     reloaded, _ = load_checkpoint(run / "last.pt", "cpu")
     a = posterior_means(model.cpu(), seq_va.cpu())
     b = posterior_means(reloaded, seq_va.cpu())
-    max_diff = max(float(np.abs(a[k] - b[k]).max()) for k in a)
+    max_diff = max(float(np.abs(a[k] - b[k]).max()) for k in a if a[k].size)
     assert max_diff < 1e-5, f"reload mismatch {max_diff}"
 
     metrics = evaluate_run(run, best.name)
@@ -92,7 +117,8 @@ def main() -> None:
           f"CE {v['cross_entropy']:.3f}, transitions true/pred {v['transitions_true_mean']:.1f}/"
           f"{v['transitions_pred_mean']:.1f}")
     la, lt = metrics["latents_val"]["amount"], metrics["latents_val"]["timing"]
-    print(f"active dims: amount {la['active_dims']}/{la['n_dims']}, timing {lt['active_dims']}/{lt['n_dims']}; "
+    amount_str = f"{la['active_dims']}/{la['n_dims']}" if la else "none (joint)"
+    print(f"active dims: amount {amount_str}, timing {lt['active_dims']}/{lt['n_dims']}; "
           f"reload max |diff| {max_diff:.2e}")
     print(f"wrote {run}")
 

@@ -52,14 +52,21 @@ class Encoder(nn.Module):
         self.rnn = nn.GRU(cfg.emb_dim + 2, cfg.hidden_dim, num_layers=cfg.num_layers, batch_first=True,
                           bidirectional=True, dropout=cfg.dropout if cfg.num_layers > 1 else 0.0)
         d = 2 * cfg.hidden_dim
-        self.amount_mu, self.amount_logvar = nn.Linear(d, cfg.z_amount), nn.Linear(d, cfg.z_amount)
+        # z_amount == 0 gives the joint-latent baseline: a single day-level latent (named "timing" internally).
+        self.z_amount = cfg.z_amount
+        if cfg.z_amount:
+            self.amount_mu, self.amount_logvar = nn.Linear(d, cfg.z_amount), nn.Linear(d, cfg.z_amount)
         self.timing_mu, self.timing_logvar = nn.Linear(d, cfg.z_timing), nn.Linear(d, cfg.z_timing)
 
     def forward(self, seq: torch.Tensor, clock: torch.Tensor) -> dict[str, torch.Tensor]:
         x = torch.cat([self.embed(seq), clock.expand(seq.shape[0], -1, -1)], dim=-1)
         h, _ = self.rnn(x)
         pooled = h.mean(dim=1)
-        return {"amount_mu": self.amount_mu(pooled), "amount_logvar": self.amount_logvar(pooled),
+        if self.z_amount:
+            a_mu, a_lv = self.amount_mu(pooled), self.amount_logvar(pooled)
+        else:
+            a_mu = a_lv = pooled.new_zeros(pooled.shape[0], 0)
+        return {"amount_mu": a_mu, "amount_logvar": a_lv,
                 "timing_mu": self.timing_mu(pooled), "timing_logvar": self.timing_logvar(pooled)}
 
 
@@ -87,7 +94,8 @@ class ScheduleVAE(nn.Module):
         self.register_buffer("pos", position_features(clock.float(), cfg.n_harmonics))  # (T, 2H)
         self.encoder = Encoder(cfg)
         self.decoder = Decoder(cfg)
-        self.amount_head = nn.Sequential(nn.Linear(cfg.z_amount, cfg.amount_head_hidden), nn.ReLU(),
+        # Auxiliary proportions head reads z_amount (or the single latent in the joint baseline).
+        self.amount_head = nn.Sequential(nn.Linear(cfg.z_amount or cfg.z_timing, cfg.amount_head_hidden), nn.ReLU(),
                                          nn.Linear(cfg.amount_head_hidden, cfg.n_categories))
 
     @staticmethod
@@ -108,7 +116,7 @@ class ScheduleVAE(nn.Module):
         else:
             za, zt = q["amount_mu"], q["timing_mu"]
         return {**q, "z_amount": za, "z_timing": zt, "logits": self.decode(za, zt),
-                "amount_logits": self.amount_head(za)}
+                "amount_logits": self.amount_head(za if self.cfg.z_amount else zt)}
 
 
 def gaussian_kl(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:

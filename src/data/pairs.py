@@ -1,0 +1,46 @@
+"""Total-preserving pairs for training guidance and evaluation.
+
+Each diary is paired with one transformed copy of itself: a bounded circular shift (30 min to 2 h by
+default, either direction) or a swap of two non-boundary activity blocks. Pairs are always made within a
+split, after splitting, so a diary and its transform never cross splits.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+
+import numpy as np
+
+from .transforms import block_swap, circular_shift
+
+
+@dataclass
+class PairConfig:
+    p_shift: float = 0.5        # probability of a shift (otherwise a block swap)
+    shift_min_bins: int = 6     # 30 minutes at 5-minute bins
+    shift_max_bins: int = 24    # 2 hours
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def transform_one(seq: np.ndarray, rng: np.random.Generator, cfg: PairConfig,
+                  n_categories: int) -> tuple[np.ndarray, dict]:
+    """Return (transformed, params). Falls back to the other transform if the first is rejected; if both
+    are rejected, returns the original with params['type'] == 'identity' (invariance is then trivially 0)."""
+    kinds = ["shift", "swap"] if rng.random() < cfg.p_shift else ["swap", "shift"]
+    for kind in kinds:
+        if kind == "shift":
+            s = int(rng.integers(cfg.shift_min_bins, cfg.shift_max_bins + 1)) * int(rng.choice([-1, 1]))
+            out, p = circular_shift(seq, s, n_categories)
+        else:
+            out, p = block_swap(seq, rng, n_categories)
+        if out is not None:
+            return out, p
+    return seq.copy(), {"type": "identity"}
+
+
+def make_pairs(batch: np.ndarray, rng: np.random.Generator, cfg: PairConfig,
+               n_categories: int) -> tuple[np.ndarray, list[dict]]:
+    outs, params = zip(*(transform_one(s, rng, cfg, n_categories) for s in batch))
+    return np.stack(outs).astype(batch.dtype), list(params)
