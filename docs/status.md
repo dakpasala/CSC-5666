@@ -27,11 +27,14 @@ Last updated: 2026-10-19
   weak (59% vs 54-58% on matched-totals mix-and-match; linear probes at the untrained floor).
   λ_invariance = 1 by the pre-registered rule. Notes: `docs/checkpoint4_notes.md`.
 
-## Next
+## In progress: Checkpoint 5
 
-- **Before Checkpoint 5:** 3 seeds on the full 2022 train split for guided (λ=1), no_invariance, unguided
-  and joint; add non-linear probes; fix the k-selection rule and success criteria on validation before
-  opening 2023.
+- Done: full-data robustness (4 variants × 3 seeds), kNN probes, full-data λ sweep → λ = 0.3,
+  k = 6 primary (decided with the user), unstandardized latent clustering. Notes:
+  `docs/checkpoint5_robustness_notes.md`.
+- Running: 12 final 80-epoch models (`scripts/run_final.sh`, `configs/vae_final.yaml`).
+- Next: `scripts/evaluate_final.py --target val` for validation references → user approves
+  `docs/preregistration.md` → `--target test --confirm-preregistered` (2023, once).
 
 ## Open decisions
 
@@ -39,7 +42,6 @@ Last updated: 2026-10-19
 - Whether `unknown` minutes should ever trigger exclusion (currently report only).
 - Weekday/weekend handling: keep pooled, or stratify or condition later (currently pooled; `TUDIARYDAY`
   stored in metadata).
-- Final k-selection rule (current rule gives k=2-3; see checkpoint 2 notes). Fix before Checkpoint 5.
 - Whether to add a non-linear totals->timing predictor and a block-weighted totals+timing baseline.
 - How to address oversmoothing (more data first; then beta/decoder changes only if diagnostics justify).
 - Whether to broaden transforms (larger shifts) or try timing-target supervision as a documented experiment.

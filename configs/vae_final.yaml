@@ -1,0 +1,51 @@
+# Checkpoint 5 FINAL frozen models: full 2022 train split, 80 epochs, seeds 42-44. Evaluated on 2023 once.
+# Same model, decoder, pairs and loss as Checkpoint 4; lambda_invariance = 0.3 from the full-data sweep rule.
+name: final
+data_config: configs/data.yaml
+year: 2022
+seed: 42
+device: cpu                # cpu | mps | cuda | auto (cpu default for reproducibility)
+output_dir: outputs/checkpoint5_final
+
+data:
+  n_train: null            # full train split (6,509 diaries)
+  n_val: null              # validation diaries for model selection/evaluation; null = full val split
+
+model:
+  emb_dim: 16
+  hidden_dim: 64
+  num_layers: 1
+  z_amount: 8
+  z_timing: 16
+  decoder_hidden: 128
+  decoder_layers: 2
+  n_harmonics: 4
+  amount_head_hidden: 32
+
+loss:
+  beta_amount: 1.0
+  beta_timing: 1.0
+  lambda_invariance: 0.3    # chosen by the pre-registered rule on the full-data sweep (see docs/preregistration.md)
+  lambda_amount: 1.0
+
+train:
+  epochs: 80               # chosen before 2023: validation loss still falling at 40
+  batch_size: 32
+  lr: 0.001
+  kl_warmup_epochs: 3
+  log_every: 5
+
+eval:
+  n_plot_examples: 8
+  plot_seed: 11
+
+threads: 1                 # one CPU thread per run so variants can run in parallel
+
+pairs:
+  enabled: true
+  p_shift: 0.5             # otherwise block swap
+  shift_min_bins: 6        # 30 min
+  shift_max_bins: 24       # 2 h
+
+# Variants x seeds launched by scripts/run_final.sh:
+#   guided (lambda_inv per pre-registered full-data sweep), no_invariance, unguided, joint  x  seeds 42, 43, 44

@@ -48,3 +48,17 @@ data, λ = 1 is 11% worse, so it **no longer satisfies that rule**. Before freez
 re-run the λ sweep on full data (e.g. λ ∈ {0.1, 0.3}) and re-apply the same rule, or freeze
 `no_invariance` (amount prediction only) as the main model and keep λ = 1 as a reported ablation.
 This is a validation-only decision.
+
+## Full-data λ sweep (added after the runs above)
+
+λ ∈ {0.1, 0.3} × 3 seeds, same 40-epoch budget. Validation CE ratio to no_invariance: λ=1 1.113,
+λ=0.3 1.037, λ=0.1 1.039. Mean amount pair sensitivity: 0.014 / 0.024 / 0.033. By the unchanged rule,
+**λ = 0.3** is frozen for the final models (`configs/vae_final.yaml`).
+
+## Cluster stability (validation, 40-epoch runs)
+
+k=6 k-means on timing latents across seeds 42/43/44 gives low agreement. With standardized latents,
+cross-seed ARI was 0.02-0.12. Unstandardized (now the frozen choice, because the prior already sets latent
+scale) it was guided 0.25, no_invariance 0.12, unguided 0.17, joint 0.35. Within-seed bootstrap ARI is
+0.47-0.65, against 0.70 for engineered timing features in Checkpoint 2. The learned latents do not have
+stable k-means structure at k=6.
