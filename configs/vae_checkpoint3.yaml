@@ -1,0 +1,40 @@
+# Checkpoint 3: small two-latent VAE on a representative 2022 training subset. Engineering check, not a finding.
+# Reconstruction + KL only; separation guidance (pairs, invariance, amount prediction) is Checkpoint 4.
+name: vae_cp3
+data_config: configs/data.yaml
+year: 2022
+seed: 42
+device: cpu                # cpu | mps | cuda | auto (cpu default for reproducibility)
+output_dir: outputs/checkpoint3
+
+data:
+  n_train: 400             # random subset of the train split (seeded); null = full split
+  n_val: null              # validation diaries for model selection/evaluation; null = full val split
+
+model:
+  emb_dim: 16
+  hidden_dim: 64
+  num_layers: 1
+  z_amount: 8
+  z_timing: 16
+  decoder_hidden: 128
+  decoder_layers: 2
+  n_harmonics: 4
+  amount_head_hidden: 32
+
+loss:
+  beta_amount: 1.0
+  beta_timing: 1.0
+  lambda_invariance: 0.0
+  lambda_amount: 0.0
+
+train:
+  epochs: 200
+  batch_size: 32
+  lr: 0.001
+  kl_warmup_epochs: 20
+  log_every: 20
+
+eval:
+  n_plot_examples: 8
+  plot_seed: 11

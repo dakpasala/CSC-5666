@@ -1,0 +1,121 @@
+"""Two-latent sequence VAE for daily schedules.
+
+Encoder: activity embedding + clock features -> bidirectional GRU -> mean-pooled day summary ->
+separate Gaussian heads for an `amount` latent and a `timing` latent.
+Decoder: at each position, an MLP sees [z_amount, z_timing, position features] and outputs category
+logits. It never sees the input sequence, so everything it reconstructs must pass through the latents.
+Amount head: optional auxiliary MLP predicting per-category proportions from z_amount (Checkpoint 4).
+
+Separate heads alone do not make the latents mean "amount" and "timing"; that requires the guidance
+added in Checkpoint 4 (paired transforms + invariance + amount prediction).
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+
+import torch
+from torch import nn
+
+
+@dataclass
+class VAEConfig:
+    n_categories: int
+    n_positions: int = 288
+    emb_dim: int = 16
+    hidden_dim: int = 64          # per direction
+    num_layers: int = 1
+    z_amount: int = 8
+    z_timing: int = 16
+    decoder_hidden: int = 128
+    decoder_layers: int = 2
+    n_harmonics: int = 4          # Fourier features of clock time given to the decoder
+    amount_head_hidden: int = 32
+    dropout: float = 0.0
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def position_features(clock: torch.Tensor, n_harmonics: int) -> torch.Tensor:
+    """clock: (T, 2) sin/cos of time of day -> (T, 2*n_harmonics) sin/cos of k * angle, k=1..n."""
+    angle = torch.atan2(clock[:, 0], clock[:, 1])
+    k = torch.arange(1, n_harmonics + 1, dtype=clock.dtype, device=clock.device)
+    a = angle[:, None] * k[None, :]
+    return torch.cat([torch.sin(a), torch.cos(a)], dim=1)
+
+
+class Encoder(nn.Module):
+    def __init__(self, cfg: VAEConfig):
+        super().__init__()
+        self.embed = nn.Embedding(cfg.n_categories, cfg.emb_dim)
+        self.rnn = nn.GRU(cfg.emb_dim + 2, cfg.hidden_dim, num_layers=cfg.num_layers, batch_first=True,
+                          bidirectional=True, dropout=cfg.dropout if cfg.num_layers > 1 else 0.0)
+        d = 2 * cfg.hidden_dim
+        self.amount_mu, self.amount_logvar = nn.Linear(d, cfg.z_amount), nn.Linear(d, cfg.z_amount)
+        self.timing_mu, self.timing_logvar = nn.Linear(d, cfg.z_timing), nn.Linear(d, cfg.z_timing)
+
+    def forward(self, seq: torch.Tensor, clock: torch.Tensor) -> dict[str, torch.Tensor]:
+        x = torch.cat([self.embed(seq), clock.expand(seq.shape[0], -1, -1)], dim=-1)
+        h, _ = self.rnn(x)
+        pooled = h.mean(dim=1)
+        return {"amount_mu": self.amount_mu(pooled), "amount_logvar": self.amount_logvar(pooled),
+                "timing_mu": self.timing_mu(pooled), "timing_logvar": self.timing_logvar(pooled)}
+
+
+class Decoder(nn.Module):
+    def __init__(self, cfg: VAEConfig):
+        super().__init__()
+        layers, d = [], cfg.z_amount + cfg.z_timing + 2 * cfg.n_harmonics
+        for _ in range(cfg.decoder_layers):
+            layers += [nn.Linear(d, cfg.decoder_hidden), nn.ReLU()]
+            d = cfg.decoder_hidden
+        layers.append(nn.Linear(d, cfg.n_categories))
+        self.mlp = nn.Sequential(*layers)
+
+    def forward(self, z_amount: torch.Tensor, z_timing: torch.Tensor, pos: torch.Tensor) -> torch.Tensor:
+        B, T = z_amount.shape[0], pos.shape[0]
+        z = torch.cat([z_amount, z_timing], dim=1)[:, None, :].expand(B, T, -1)
+        return self.mlp(torch.cat([z, pos[None].expand(B, -1, -1)], dim=-1))   # (B, T, C)
+
+
+class ScheduleVAE(nn.Module):
+    def __init__(self, cfg: VAEConfig, clock: torch.Tensor):
+        super().__init__()
+        self.cfg = cfg
+        self.register_buffer("clock", clock.float())                                   # (T, 2)
+        self.register_buffer("pos", position_features(clock.float(), cfg.n_harmonics))  # (T, 2H)
+        self.encoder = Encoder(cfg)
+        self.decoder = Decoder(cfg)
+        self.amount_head = nn.Sequential(nn.Linear(cfg.z_amount, cfg.amount_head_hidden), nn.ReLU(),
+                                         nn.Linear(cfg.amount_head_hidden, cfg.n_categories))
+
+    @staticmethod
+    def reparameterize(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+        return mu + torch.randn_like(mu) * torch.exp(0.5 * logvar)
+
+    def encode(self, seq: torch.Tensor) -> dict[str, torch.Tensor]:
+        return self.encoder(seq.long(), self.clock)
+
+    def decode(self, z_amount: torch.Tensor, z_timing: torch.Tensor) -> torch.Tensor:
+        return self.decoder(z_amount, z_timing, self.pos)
+
+    def forward(self, seq: torch.Tensor, sample: bool = True) -> dict[str, torch.Tensor]:
+        q = self.encode(seq)
+        if sample:
+            za = self.reparameterize(q["amount_mu"], q["amount_logvar"])
+            zt = self.reparameterize(q["timing_mu"], q["timing_logvar"])
+        else:
+            za, zt = q["amount_mu"], q["timing_mu"]
+        return {**q, "z_amount": za, "z_timing": zt, "logits": self.decode(za, zt),
+                "amount_logits": self.amount_head(za)}
+
+
+def gaussian_kl(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+    """KL(N(mu, sigma^2) || N(0, 1)) per sample and dimension: (B, D)."""
+    return 0.5 * (mu.pow(2) + logvar.exp() - 1.0 - logvar)
+
+
+def parameter_count(model: nn.Module) -> int:
+    return sum(p.numel() for p in model.parameters())
+
