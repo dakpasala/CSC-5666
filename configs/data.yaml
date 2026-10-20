@@ -1,0 +1,29 @@
+# Data preparation settings (Checkpoint 1).
+raw_dir: data/raw
+processed_dir: data/processed
+mapping: configs/category_mapping_v1.yaml
+
+# ATUS diary window: 4:00 a.m. on the diary day to 4:00 a.m. the next day (1,440 minutes).
+diary_start_clock_minute: 240
+diary_minutes: 1440
+bin_minutes: 5
+
+# Respondent split, applied to the training year only. Test year is never split or tuned on.
+train_year: 2022
+test_year: 2023
+split:
+  seed: 42
+  val_fraction: 0.2
+
+# Optional exclusion threshold on unknown/data-code minutes (null = report only, do not exclude).
+max_unknown_minutes: null
+
+# Metadata kept OUT of model tensors. Stored separately for weighting and interpretation.
+# Health variables (BMI, general health) are deliberately not loaded here.
+respondent_metadata_columns: [TUYEAR, TUMONTH, TUDIARYDAY, TRHOLIDAY, TUFINLWGT, TELFS]
+roster_metadata_columns: [TEAGE, TESEX]   # taken from the respondent's own roster line (TULINENO == 1)
+missing_value_codes: [-1, -2, -3]           # blank, don't know, refused (interview data dictionary)
+
+plots:
+  n_examples: 12
+  seed: 7

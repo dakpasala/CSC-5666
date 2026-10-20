@@ -1,0 +1,74 @@
+# Versioned mapping from ATUS six-digit activity codes (TRCODE) to modeled categories.
+# Verified against the 2022 and 2023 ATUS Activity Coding Lexicons (lexiconwex2022/2023).
+#
+# Rules are code prefixes; the LONGEST matching prefix wins, so tier-2/tier-3 overrides can
+# refine a tier-1 default. Any code that matches no rule maps to `unknown` and is counted.
+# Category order defines the integer index used in sequences; do not reorder within a version.
+
+version: v1
+unknown_category: unknown
+
+categories:
+  - sleep
+  - personal_care
+  - eating_drinking
+  - household
+  - caregiving
+  - work
+  - education
+  - shopping_services
+  - leisure_social
+  - exercise_sports
+  - travel
+  - other
+  - unknown
+
+rules:
+  # 01 Personal care: sleep (0101) is separated from the rest of personal care.
+  "01": personal_care
+  "0101": sleep            # 010101 sleeping, 010102 sleeplessness, 010199 n.e.c.
+
+  # 02 Household activities, including 0202 food & drink preparation (kept apart from eating).
+  "02": household
+
+  # 03/04 Caring for and helping household and non-household members.
+  "03": caregiving
+  "04": caregiving
+
+  # 05 Work and work-related. Eating/sports "as part of job" (050202/050203) stay work time.
+  "05": work
+
+  "06": education
+
+  # 07 Consumer purchases, 08 professional & personal care services, 09 household services.
+  "07": shopping_services
+  "08": shopping_services
+  "09": shopping_services
+
+  # 10 Government services & civic obligations.
+  "10": other
+
+  # 11 Eating and drinking (includes 1102 waiting associated with eating).
+  "11": eating_drinking
+
+  # 12 Socializing, relaxing, leisure (includes TV, including watching sports on TV).
+  "12": leisure_social
+
+  # 13 Sports, exercise, recreation: participating vs attending/watching are split.
+  "13": exercise_sports
+  "1302": leisure_social   # attending sporting/recreational events (spectator)
+  "130302": leisure_social # waiting related to attending sporting events
+  "130402": leisure_social # security related to attending sporting events
+
+  # 14 Religious, 15 volunteer.
+  "14": other
+  "15": other
+
+  # 16 Telephone calls (to/from family, friends, others).
+  "16": leisure_social
+
+  # 18 Travel: all travel regardless of purpose.
+  "18": travel
+
+  # 50 Data codes: insufficient detail, missing travel, refused, gap/can't remember, unable to code.
+  "50": unknown

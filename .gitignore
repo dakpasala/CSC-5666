@@ -1,3 +1,22 @@
 .agents
 .claude
 .codex
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Data: raw respondent records and generated tables are never committed
+data/raw/*
+!data/raw/README.md
+data/processed/
+
+# Run outputs: keep directory, ignore generated artifacts
+outputs/*
+!outputs/README.md
+*.pt
+*.ckpt
+
+.DS_Store
