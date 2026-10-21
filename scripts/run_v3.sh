@@ -12,6 +12,7 @@ export PY CFG LOG
 sets_for() {
   case "$1" in
     base)        echo "" ;;                                 # v1 baseline settings (for extra seeds)
+    base80)      echo "train.epochs=80" ;;                  # v1 baseline trained 80 epochs (longer-training test)
     E1_local)    echo "pairs.family=local" ;;
     E2_betaT2)   echo "loss.beta_timing=2.0" ;;
     E3_tsup)     echo "model.timing_head=true loss.lambda_timing=0.3" ;;
