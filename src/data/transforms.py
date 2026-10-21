@@ -7,6 +7,9 @@ arrangement. They are diagnostic and training-guidance cases, not realistic diar
   end of the window, which is an artificial boundary effect; the wrapped categories are recorded.
 - block_swap: exchanges two whole runs of different categories, moving everything between them.
   Runs touching the window boundaries are never chosen, to avoid moving censored sleep.
+- local_shift (v3): moves one interior block earlier or later by up to `max_shift` bins, staying strictly
+  inside the interior (never past the first or last run), so clock timing changes locally without wrapping.
+- adjacent_swap (v3): exchanges two neighbouring interior runs (a local order change).
 - split_merge: changes fragmentation. "split" moves a chunk of another activity into the middle of a run
   (one more bout of that activity); "merge" moves the segment separating two same-activity runs to just
   after them (one fewer bout). Boundary runs are never split, merged or moved.
@@ -115,3 +118,44 @@ def split_merge(seq: np.ndarray, rng: np.random.Generator, n_categories: int, ma
             assert_counts_preserved(seq, out, n_categories)
             return out, {"type": "split_merge", "op": op, **p}
     return None, {"type": "split_merge", "rejected": "no_valid_split_or_merge"}
+
+
+def local_shift(seq: np.ndarray, rng: np.random.Generator, n_categories: int, max_shift: int = 12,
+                max_tries: int = 20) -> tuple[np.ndarray | None, dict]:
+    """Move one interior run by d bins (1 <= |d| <= max_shift) within the interior region."""
+    runs = _runs(seq)
+    if len(runs) < 4:
+        return None, {"type": "local_shift", "rejected": "too_few_runs"}
+    lo, hi = runs[0][2], runs[-1][1]                     # interior region [lo, hi)
+    interior = runs[1:-1]
+    for _ in range(max_tries):
+        c, s, e = interior[rng.integers(len(interior))]
+        d = int(rng.integers(1, max_shift + 1)) * int(rng.choice([-1, 1]))
+        block = seq[s:e]
+        rest = np.concatenate([seq[:s], seq[e:]])
+        pos = s + d
+        if pos < lo or pos + (e - s) > hi:
+            continue
+        out = np.concatenate([rest[:pos], block, rest[pos:]])
+        if np.array_equal(out, seq):
+            continue
+        assert_counts_preserved(seq, out, n_categories)
+        return out, {"type": "local_shift", "run": [c, s, e], "shift": d}
+    return None, {"type": "local_shift", "rejected": "no_valid_move"}
+
+
+def adjacent_swap(seq: np.ndarray, rng: np.random.Generator, n_categories: int,
+                  max_tries: int = 20) -> tuple[np.ndarray | None, dict]:
+    """Swap two neighbouring interior runs of different activities."""
+    runs = _runs(seq)[1:-1]
+    if len(runs) < 2:
+        return None, {"type": "adjacent_swap", "rejected": "too_few_runs"}
+    for _ in range(max_tries):
+        i = int(rng.integers(len(runs) - 1))
+        (ca, sa, ea), (cb, sb, eb) = runs[i], runs[i + 1]
+        out = np.concatenate([seq[:sa], seq[sb:eb], seq[sa:ea], seq[eb:]])
+        if np.array_equal(out, seq):
+            continue
+        assert_counts_preserved(seq, out, n_categories)
+        return out, {"type": "adjacent_swap", "runs": [[ca, sa, ea], [cb, sb, eb]]}
+    return None, {"type": "adjacent_swap", "rejected": "no_valid_pair"}

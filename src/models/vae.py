@@ -16,6 +16,7 @@ from dataclasses import asdict, dataclass
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 
 @dataclass
@@ -32,6 +33,7 @@ class VAEConfig:
     n_harmonics: int = 4          # Fourier features of clock time given to the decoder
     amount_head_hidden: int = 32
     dropout: float = 0.0
+    timing_head: bool = False     # v3 E3: auxiliary head predicting engineered clock features from z_timing
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -97,6 +99,10 @@ class ScheduleVAE(nn.Module):
         # Auxiliary proportions head reads z_amount (or the single latent in the joint baseline).
         self.amount_head = nn.Sequential(nn.Linear(cfg.z_amount or cfg.z_timing, cfg.amount_head_hidden), nn.ReLU(),
                                          nn.Linear(cfg.amount_head_hidden, cfg.n_categories))
+        if cfg.timing_head:
+            # Targets: (sin, cos, first, last) for every category except the last (`unknown`); see timing_targets().
+            self.timing_head = nn.Sequential(nn.Linear(cfg.z_timing, cfg.amount_head_hidden), nn.ReLU(),
+                                             nn.Linear(cfg.amount_head_hidden, 4 * (cfg.n_categories - 1)))
 
     @staticmethod
     def reparameterize(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
@@ -115,8 +121,34 @@ class ScheduleVAE(nn.Module):
             zt = self.reparameterize(q["timing_mu"], q["timing_logvar"])
         else:
             za, zt = q["amount_mu"], q["timing_mu"]
-        return {**q, "z_amount": za, "z_timing": zt, "logits": self.decode(za, zt),
-                "amount_logits": self.amount_head(za if self.cfg.z_amount else zt)}
+        out = {**q, "z_amount": za, "z_timing": zt, "logits": self.decode(za, zt),
+               "amount_logits": self.amount_head(za if self.cfg.z_amount else zt)}
+        if self.cfg.timing_head:
+            out["timing_pred"] = self.timing_head(zt)
+            out["clock"] = self.clock
+        return out
+
+
+def timing_targets(seq: torch.Tensor, clock: torch.Tensor, n_categories: int) -> tuple[torch.Tensor, torch.Tensor]:
+    """Engineered clock features per category (excluding the last, `unknown`), computed from a batch.
+
+    For each category: circular mean of clock time over its slots (sin, cos; mean resultant, so length also
+    reflects spread), first onset and last offset as fractions of the window. Returns (targets, mask) of
+    shape (B, 4 * (C - 1)); mask is 0 where the category is absent (undefined targets are never trained on).
+    """
+    B, T = seq.shape
+    oh = F.one_hot(seq.long(), n_categories)[..., :-1].float()            # (B, T, C-1)
+    n = oh.sum(1)
+    present = (n > 0).float()
+    denom = n.clamp_min(1.0)
+    sin = (oh * clock[None, :, 0, None]).sum(1) / denom
+    cos = (oh * clock[None, :, 1, None]).sum(1) / denom
+    pos = torch.arange(T, device=seq.device, dtype=torch.float32)[None, :, None]
+    first = torch.where(oh > 0, pos, torch.full_like(oh, float(T))).amin(1) / T
+    last = (torch.where(oh > 0, pos, torch.full_like(oh, -1.0)).amax(1) + 1) / T
+    targets = torch.cat([sin, cos, first, last], dim=1)
+    mask = present.repeat(1, 4)
+    return targets * mask, mask
 
 
 def gaussian_kl(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:

@@ -41,6 +41,12 @@ Last updated: 2026-10-20
   Its timing latent is less probe-readable than v1's, and groups remain unstable; engineered features stay the
   best grouping tool. `docs/v2_test_results.md`. 2025 data remain untouched.
 
+- **v3 (improving v1; 2022 development only).** Diagnosis, then one-factor experiments, then seed ensembles.
+  Adopted: v1 + self-budgeted decoding + 3-model ensembles for groups (ARI across disjoint ensembles 0.38 vs 0.19
+  single; more timing information, not less). Rejected: realistic local transforms, timing-feature supervision;
+  stronger timing KL gives a smaller, information-costly gain. Engineered features remain the most reliable
+  grouping tool. `docs/v3_plan.md`.
+
 ## Next
 
 - **Checkpoint 6: report and presentation.** Results table, model diagram, example timelines,

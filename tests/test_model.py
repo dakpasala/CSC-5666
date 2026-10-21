@@ -82,3 +82,22 @@ def test_paired_loss_invariance_and_joint_model():
     out = j(x)
     assert out["amount_mu"].shape == (4, 0) and out["logits"].shape == (4, T, C)
     assert paired_loss(j, x, x.roll(12, dims=1), LossWeights(lambda_invariance=1.0))["amount_invariance"] == 0
+
+
+def test_v3_timing_head_and_local_transforms():
+    from src.data.pairs import PairConfig, make_pairs
+    from src.models.vae import timing_targets
+    m, x = small_model(timing_head=True), toy_days(6)
+    terms = schedule_loss(m(x), x, LossWeights(lambda_timing=1.0))
+    assert torch.isfinite(terms["timing_supervision"]) and terms["timing_supervision"] > 0
+    terms["loss"].backward()
+    assert m.timing_head[0].weight.grad.abs().sum() > 0 and m.encoder.timing_mu.weight.grad.abs().sum() > 0
+    assert m.encoder.amount_mu.weight.grad is not None
+    t, mask = timing_targets(x, CLOCK, C)
+    assert t.shape == (6, 4 * (C - 1)) and ((t != 0) <= (mask > 0)).all()
+    out, params = make_pairs(x.numpy(), np.random.default_rng(0), PairConfig(family="local"), C)
+    for s, o, p in zip(x.numpy(), out, params):
+        assert np.array_equal(np.bincount(s, minlength=C), np.bincount(o, minlength=C))
+        assert p["type"] in ("local_shift", "adjacent_swap", "split_merge", "identity")
+        if p["type"] == "local_shift":
+            assert 1 <= abs(p["shift"]) <= 12

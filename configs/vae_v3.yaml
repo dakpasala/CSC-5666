@@ -1,0 +1,53 @@
+# v3 experiments (docs/v3_plan.md): v1 guided (lambda_inv 0.3), full 2022 train split, 40 epochs. One factor changed per experiment via --set.
+# Baseline = outputs/checkpoint5_robustness/guided_l0.3_s* (identical settings, already trained).
+name: v3
+data_config: configs/data.yaml
+year: 2022
+seed: 42
+device: cpu                # cpu | mps | cuda | auto (cpu default for reproducibility)
+output_dir: outputs/v3
+
+data:
+  n_train: null            # full train split (6,509 diaries)
+  n_val: null              # validation diaries for model selection/evaluation; null = full val split
+
+model:
+  emb_dim: 16
+  hidden_dim: 64
+  num_layers: 1
+  z_amount: 8
+  z_timing: 16
+  decoder_hidden: 128
+  decoder_layers: 2
+  n_harmonics: 4
+  amount_head_hidden: 32
+
+loss:
+  beta_amount: 1.0
+  beta_timing: 1.0
+  lambda_invariance: 0.3
+  lambda_amount: 1.0
+
+train:
+  epochs: 40               # ~8k steps; best validation checkpoint kept
+  batch_size: 32
+  lr: 0.001
+  kl_warmup_epochs: 3
+  log_every: 5
+
+eval:
+  n_plot_examples: 8
+  plot_seed: 11
+
+threads: 1                 # one CPU thread per run so variants can run in parallel
+
+pairs:
+  enabled: true
+  p_shift: 0.5             # otherwise block swap
+  shift_min_bins: 6        # 30 min
+  shift_max_bins: 24       # 2 h
+
+# Experiments (scripts/run_v3.sh), each a single change from the baseline:
+#   E1_local   pairs.family=local                       realistic local transforms (local shift, adjacent swap, split/merge)
+#   E2_betaT2  loss.beta_timing=2.0                      stronger KL on the timing latent
+#   E3_tsup    model.timing_head=true loss.lambda_timing=0.3   SUPERVISED: timing head predicts engineered clock features
