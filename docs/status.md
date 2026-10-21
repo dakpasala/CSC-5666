@@ -52,6 +52,10 @@ Last updated: 2026-10-20
   (sleep-midpoint ratio ≈ 2 vs 1.28 for engineered-feature groups) and are moderately reliable (ARI 0.36 vs
   0.82 for engineered features). `docs/v3_test_results.md`. No untouched ATUS year remains until 2026 data.
 
+- **How many groups (development, 2022 val):** k = 4 is the most reproducible useful setting for v3 ensembles
+  (ARI 0.52 vs 0.38 at k = 6; confident days 0.96). The four groups are early/standard, midday-shifted, late
+  rhythm, and irregular/daytime sleep. `docs/v3_k_sweep.md`. Not confirmed on held-out data.
+
 ## Next
 
 - **Checkpoint 6: report and presentation.** Results table, model diagram, example timelines,
