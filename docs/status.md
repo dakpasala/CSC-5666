@@ -47,6 +47,11 @@ Last updated: 2026-10-20
   stronger timing KL gives a smaller, information-costly gain. Engineered features remain the most reliable
   grouping tool. `docs/v3_plan.md`.
 
+- **v3 test on ATUS 2025** (pre-registered, approved 2026-10-21): 15 of 16 checks met, exactly as validation
+  predicted. Separation holds on unseen data; ensemble groups separate same-total days by daily rhythm
+  (sleep-midpoint ratio ≈ 2 vs 1.28 for engineered-feature groups) and are moderately reliable (ARI 0.36 vs
+  0.82 for engineered features). `docs/v3_test_results.md`. No untouched ATUS year remains until 2026 data.
+
 ## Next
 
 - **Checkpoint 6: report and presentation.** Results table, model diagram, example timelines,
