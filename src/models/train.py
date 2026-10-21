@@ -110,6 +110,16 @@ def train(model: ScheduleVAE, seq_tr: torch.Tensor, seq_va: torch.Tensor, w: Los
     return history
 
 
+def build_model(model_cfg: dict, clock: torch.Tensor) -> torch.nn.Module:
+    """Construct v1 (ScheduleVAE) or v2 (StructuredScheduleVAE) from a config dict with `model_type`."""
+    model_cfg = dict(model_cfg)
+    kind = model_cfg.pop("model_type", "v1")
+    if kind == "v2":
+        from .vae_v2 import StructuredScheduleVAE, VAEv2Config
+        return StructuredScheduleVAE(VAEv2Config(**model_cfg), clock)
+    return ScheduleVAE(VAEConfig(**model_cfg), clock)
+
+
 def save_checkpoint(path: Path, model: ScheduleVAE, extra: dict | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"config": model.cfg.to_dict(), "clock": model.clock.cpu(),
@@ -119,7 +129,7 @@ def save_checkpoint(path: Path, model: ScheduleVAE, extra: dict | None = None) -
 def load_checkpoint(path: Path, device: str | torch.device = "cpu") -> tuple[ScheduleVAE, dict]:
     """Rebuild the model from the checkpoint alone: config and clock features are stored inside it."""
     ck = torch.load(path, map_location="cpu", weights_only=True)
-    model = ScheduleVAE(VAEConfig(**ck["config"]), ck["clock"])
+    model = build_model(dict(ck["config"]), ck["clock"])
     model.load_state_dict(ck["state_dict"])
     return model.to(device).eval(), ck
 

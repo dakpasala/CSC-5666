@@ -1,8 +1,9 @@
 """Total-preserving pairs for training guidance and evaluation.
 
 Each diary is paired with one transformed copy of itself: a bounded circular shift (30 min to 2 h by
-default, either direction) or a swap of two non-boundary activity blocks. Pairs are always made within a
-split, after splitting, so a diary and its transform never cross splits.
+default, either direction), a swap of two non-boundary activity blocks, or (v2, optional) a split/merge
+that changes fragmentation. Pairs are always made within a split, after splitting, so a diary and its
+transform never cross splits.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 
-from .transforms import block_swap, circular_shift
+from .transforms import block_swap, circular_shift, split_merge
 
 
 @dataclass
@@ -19,6 +20,7 @@ class PairConfig:
     p_shift: float = 0.5        # probability of a shift (otherwise a block swap)
     shift_min_bins: int = 6     # 30 minutes at 5-minute bins
     shift_max_bins: int = 24    # 2 hours
+    p_split_merge: float = 0.0  # v2: probability of a split/merge; 0 keeps v1 sampling exactly unchanged
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -28,6 +30,10 @@ def transform_one(seq: np.ndarray, rng: np.random.Generator, cfg: PairConfig,
                   n_categories: int) -> tuple[np.ndarray, dict]:
     """Return (transformed, params). Falls back to the other transform if the first is rejected; if both
     are rejected, returns the original with params['type'] == 'identity' (invariance is then trivially 0)."""
+    if cfg.p_split_merge > 0 and rng.random() < cfg.p_split_merge:
+        out, p = split_merge(seq, rng, n_categories)
+        if out is not None:
+            return out, p
     kinds = ["shift", "swap"] if rng.random() < cfg.p_shift else ["swap", "shift"]
     for kind in kinds:
         if kind == "shift":

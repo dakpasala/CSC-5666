@@ -11,6 +11,7 @@ bin_minutes: 5
 # Respondent split, applied to the training year only. Test year is never split or tuned on.
 train_year: 2022
 test_year: 2023
+holdout_years: [2024, 2025]   # untouched test years for later model versions (2024: v2 test)
 split:
   seed: 42
   val_fraction: 0.2

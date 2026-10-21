@@ -33,6 +33,16 @@ Last updated: 2026-10-20
   years; the split adds no timing information beyond a joint latent; learned groups are interpretable but
   unstable, and engineered timing features give more stable groups. `docs/checkpoint5_results.md`.
 
+## In progress: model v2 (post-test redesign)
+
+- After the 2023 test, the project owner asked for a model that separates the factors more cleanly. Design:
+  `docs/model_v2_proposal.md`. The amount pathway sees counts only, the timing pathway is conditioned on
+  totals, the decoder is budget-constrained (Sinkhorn) with exact-budget decoding, and a new split/merge
+  transform covers fragmentation.
+- Implemented and tested (27 tests pass); smoke run only. **Not trained yet.**
+- Plan: train/tune on 2022 validation only → new pre-registration → one test on ATUS 2024 (2025 in
+  reserve). The 2023 result stays as the record for v1.
+
 ## Next
 
 - **Checkpoint 6: report and presentation.** Results table, model diagram, example timelines,
@@ -46,6 +56,6 @@ Last updated: 2026-10-20
   stored in metadata).
 - Whether to add a non-linear totals->timing predictor and a block-weighted totals+timing baseline.
 - How to address oversmoothing (more data first; then beta/decoder changes only if diagnostics justify).
-- Whether to broaden transforms (larger shifts) or try timing-target supervision as a documented experiment.
+- v2 choices for validation: β values, conditional prior on/off, budget warm-up, Sinkhorn temperature.
 - Survey weights: prototype is unweighted; weighted sensitivity analysis needed before any
   population-facing statement.

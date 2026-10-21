@@ -1,0 +1,54 @@
+# Model v2 (docs/model_v2_proposal.md): amount/timing split built into the architecture.
+# Development on 2022 train/validation only; a fresh pre-registered test on ATUS 2024 follows.
+name: v2
+data_config: configs/data.yaml
+year: 2022
+seed: 42
+device: cpu
+output_dir: outputs/v2
+threads: 1
+
+data:
+  n_train: null            # full train split
+  n_val: null
+
+model:
+  model_type: v2
+  emb_dim: 16
+  hidden_dim: 64
+  num_layers: 1
+  z_amount: 8              # same sizes as v1 for comparability
+  z_timing: 16
+  amount_hidden: 64
+  decoder_hidden: 128
+  decoder_layers: 2
+  n_harmonics: 4
+  amount_head_hidden: 32
+  sinkhorn_iters: 20
+  sinkhorn_tau: 1.0
+  conditional_prior: false # variant to test: learned p(z_timing | z_amount)
+  budget_source: predicted # "observed" = diagnostic / teacher budgets
+
+loss:
+  beta_amount: 0.3        # chosen by the v2 sweep rule (docs/v2_sweep_report.md)
+  beta_timing: 0.3
+  lambda_invariance: 0.0   # not needed: z_amount sees counts only, so it is invariant by construction
+  lambda_amount: 1.0       # amount head CE on proportions (budgets come from it)
+
+train:
+  epochs: 80
+  batch_size: 32
+  lr: 0.001
+  kl_warmup_epochs: 3
+  log_every: 5
+
+pairs:
+  enabled: true            # transforms as augmentation; split/merge adds fragmentation changes
+  p_shift: 0.5
+  shift_min_bins: 6
+  shift_max_bins: 24
+  p_split_merge: 0.33
+
+eval:
+  n_plot_examples: 8
+  plot_seed: 11

@@ -1,6 +1,8 @@
 # Model v2 proposal: building the amount/timing split into the architecture
 
-Status: **proposal, not implemented.** Written 2026-10-20, after the v1 test on 2023. Any v2 development
+Status: **implemented and tested, not yet trained** (2026-10-20). Code: `src/models/vae_v2.py`,
+split/merge in `src/data/transforms.py`, config `configs/vae_v2.yaml`, tests `tests/test_model_v2.py`.
+Written after the v1 test on 2023. Any v2 development
 uses 2022 train/validation only, followed by a fresh pre-registered test on ATUS 2024. 2025 stays in reserve.
 The 2023 result stays in the record as the honest test of v1.
 
@@ -78,6 +80,19 @@ Amount separation is guaranteed by design, so the criteria move to the timing la
   organization than a joint latent or hand-made features?
 
 Both are reported. v2 is a design change motivated by v1's test result and is labelled as such.
+
+## Implementation notes
+
+- `budget_source: predicted` (default) uses the amount head's proportions as budgets, so reconstruction
+  trains z_amount too. `observed` uses the true counts (teacher budgets; also a diagnostic).
+- In the smoke run, the amount head was still near-uniform after 3 tiny epochs, so predicted budgets start
+  out uninformative. If full-data training is slow to start, warm up with observed budgets for the first
+  epochs, decided on validation.
+- Evaluation adds:
+  - exact-budget reconstruction (predicted and observed budgets);
+  - split/merge pair sensitivity;
+  - kNN fragmentation gain (bouts, transitions);
+  - exact-budget decoding in mix-and-match.
 
 ## Risks
 

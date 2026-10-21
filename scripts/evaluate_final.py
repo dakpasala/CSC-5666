@@ -34,8 +34,7 @@ from src.evaluation.plotting import INK, palette, plt, stacked_profile  # noqa: 
 from src.evaluation.reconstruction import latent_diagnostics, reconstruction_metrics  # noqa: E402
 from src.evaluation.separation import evaluate_separation  # noqa: E402
 from src.evaluation.timing_checks import matched_totals_pairs  # noqa: E402
-from src.models.train import load_checkpoint, posterior_means, reconstruct, set_seed  # noqa: E402
-from src.models.vae import ScheduleVAE, VAEConfig  # noqa: E402
+from src.models.train import build_model, load_checkpoint, posterior_means, reconstruct, set_seed  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location("cmp4", ROOT / "scripts/compare_checkpoint4.py")
 cmp4 = importlib.util.module_from_spec(_spec)
@@ -138,7 +137,7 @@ def main() -> None:
     for s in SEEDS:
         set_seed(s)
         cfg = yaml.safe_load((ROOT / "configs/vae_final.yaml").read_text())
-        model = ScheduleVAE(VAEConfig(n_categories=C, **cfg["model"]), torch.from_numpy(clock)).eval()
+        model = build_model({"n_categories": C, **cfg["model"]}, torch.from_numpy(clock)).eval()
         emb = posterior_means(model, torch.from_numpy(seq).long())
         r = cmp4.row("untrained", {"separation": evaluate_separation(model, seq, split, cats, clock, emb)}, None)
         rows.append({**r, "seed": s})

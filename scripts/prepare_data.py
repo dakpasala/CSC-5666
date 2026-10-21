@@ -78,7 +78,8 @@ def main() -> None:
     if year == cfg["train_year"]:
         split = respondent_split(valid_ids, cfg["split"]["val_fraction"], cfg["split"]["seed"])
     else:
-        split = pd.DataFrame({"case_id": valid_ids, "split": "test" if year == cfg["test_year"] else "unused"})
+        held_out = year == cfg["test_year"] or year in cfg.get("holdout_years", [])
+        split = pd.DataFrame({"case_id": valid_ids, "split": "test" if held_out else "unused"})
     diaries = diaries.merge(split, on="case_id", how="left", validate="one_to_one")
     split_arr = split.set_index("case_id").loc[valid_ids, "split"].to_numpy()
 

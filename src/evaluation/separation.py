@@ -31,6 +31,13 @@ EVAL_PAIR_SEED = 2024
 ALPHAS = np.logspace(-3, 3, 13)
 
 
+def _decode_hard(model, za: torch.Tensor, zt: torch.Tensor) -> np.ndarray:
+    """Exact-budget decoding for v2 models (amount fixes the minutes), argmax per slot for v1."""
+    if hasattr(model, "decode_exact"):
+        return model.decode_exact(za, zt)
+    return model.decode(za, zt).argmax(-1).numpy()
+
+
 def _rel_dist(a: np.ndarray, b: np.ndarray, ref: np.ndarray, rng: np.random.Generator) -> dict | None:
     if a.shape[1] == 0:
         return None
@@ -43,10 +50,12 @@ def _rel_dist(a: np.ndarray, b: np.ndarray, ref: np.ndarray, rng: np.random.Gene
 
 def pair_sensitivity(model, seq_va: np.ndarray, emb_va: dict, n_categories: int) -> dict:
     out = {}
-    for name, pcfg in {"shift": PairConfig(p_shift=1.0), "swap": PairConfig(p_shift=0.0)}.items():
+    kinds = {"shift": (PairConfig(p_shift=1.0), "circular_shift"), "swap": (PairConfig(p_shift=0.0), "block_swap"),
+             "split_merge": (PairConfig(p_split_merge=1.0), "split_merge")}
+    for name, (pcfg, kind) in kinds.items():
         rng = np.random.default_rng(EVAL_PAIR_SEED)
         seq_t, params = make_pairs(seq_va, rng, pcfg, n_categories)
-        keep = np.array([p["type"] == ("circular_shift" if name == "shift" else "block_swap") for p in params])
+        keep = np.array([p["type"] == kind for p in params])
         e_t = posterior_means(model, torch.from_numpy(seq_t[keep]).long())
         rng = np.random.default_rng(EVAL_PAIR_SEED)
         out[name] = {
@@ -87,6 +96,8 @@ def probes(emb: dict, seq: np.ndarray, split: np.ndarray, categories: list[str],
     tim = tf.transform(seq)
     # Clock-position features only (centre/first/last), where totals have little linear information.
     clock_cols = np.array([n.split("_")[0] in ("center", "first", "last") for n in tf.names_])
+    # Fragmentation features: bouts per activity and total transitions.
+    frag_cols = np.array([n.split("_")[0] in ("bouts", "transitions") for n in tf.names_])
 
     def summary(r2: np.ndarray) -> float:
         return float(np.nanmean(r2))
@@ -95,7 +106,8 @@ def probes(emb: dict, seq: np.ndarray, split: np.ndarray, categories: list[str],
     base_tim = ridge_r2(tot[tr], tim[tr], tot[va], tim[va])
     base_knn = knn_r2(tot[tr], tim[tr], tot[va], tim[va])
     out["totals_only_baseline"] = {"timing_r2": summary(base_tim), "timing_clock_r2": summary(base_tim[clock_cols]),
-                                   "knn_timing_clock_r2": summary(base_knn[clock_cols])}
+                                   "knn_timing_clock_r2": summary(base_knn[clock_cols]),
+                                   "knn_frag_r2": summary(base_knn[frag_cols])}
     latents = {"amount": emb["amount_mu"], "timing": emb["timing_mu"],
                "both": np.hstack([emb["amount_mu"], emb["timing_mu"]])}
     for name, Z in latents.items():
@@ -105,6 +117,7 @@ def probes(emb: dict, seq: np.ndarray, split: np.ndarray, categories: list[str],
         r_tot = ridge_r2(Z[tr], tot[tr], Z[va], tot[va])
         r_tim = ridge_r2(Z[tr], tim[tr], Z[va], tim[va])
         both = np.hstack([tot, Z])
+        knn_gain = knn_r2(both[tr], tim[tr], both[va], tim[va])
         r_gain = ridge_r2(both[tr], tim[tr], both[va], tim[va])
         out["inputs"][name] = {
             "totals_r2": summary(r_tot),
@@ -116,8 +129,9 @@ def probes(emb: dict, seq: np.ndarray, split: np.ndarray, categories: list[str],
             # Non-linear (kNN, k=25) versions of the same questions.
             "knn_totals_r2": summary(knn_r2(Z[tr], tot[tr], Z[va], tot[va])),
             "knn_timing_clock_r2": summary(knn_r2(Z[tr], tim[tr], Z[va], tim[va])[clock_cols]),
-            "knn_timing_clock_gain_over_true_totals": summary(knn_r2(both[tr], tim[tr], both[va], tim[va])[clock_cols])
+            "knn_timing_clock_gain_over_true_totals": summary(knn_gain[clock_cols])
                                                      - out["totals_only_baseline"]["knn_timing_clock_r2"],
+            "knn_frag_gain_over_true_totals": summary(knn_gain[frag_cols]) - out["totals_only_baseline"]["knn_frag_r2"],
         }
     return out
 
@@ -132,7 +146,7 @@ def mix_and_match(model, seq_va: np.ndarray, emb_va: dict, categories: list[str]
     keep = a != b
     a, b = a[keep], b[keep]
     za, zt = torch.from_numpy(emb_va["amount_mu"]), torch.from_numpy(emb_va["timing_mu"])
-    dec = model.decode(za[a], zt[b]).argmax(-1).numpy()
+    dec = _decode_hard(model, za[a], zt[b])
     C = len(categories)
     props = lambda s: category_counts(s, C) / s.shape[1]   # noqa: E731
     pd_, pa, pb = props(dec), props(seq_va[a]), props(seq_va[b])
@@ -168,7 +182,7 @@ def mix_and_match_matched_totals(model, seq_va: np.ndarray, emb_va: dict, catego
     a = np.concatenate([pairs[:, 0], pairs[:, 1]])
     b = np.concatenate([pairs[:, 1], pairs[:, 0]])
     za, zt = torch.from_numpy(emb_va["amount_mu"]), torch.from_numpy(emb_va["timing_mu"])
-    dec = model.decode(za[a], zt[b]).argmax(-1).numpy()
+    dec = _decode_hard(model, za[a], zt[b])
     tf = TimingFeaturizer(categories, clock).fit(seq_tr)
     sc = StandardScaler().fit(tf.transform(seq_tr))
     clock_cols = np.array([nm.split("_")[0] in ("center", "first", "last") for nm in tf.names_])
@@ -195,3 +209,37 @@ def evaluate_separation(model, seq: np.ndarray, split: np.ndarray, categories: l
         "mix_and_match_matched_totals_val": mix_and_match_matched_totals(model, seq[va], emb_va, categories, clock,
                                                                          seq[split == "train"]),
     }
+
+
+PROBE_TARGETS = {
+    "fragmentation": ["transitions", "bouts_eating_drinking", "bouts_travel", "bouts_work", "bouts_household",
+                      "bouts_sleep"],
+    "clock": ["first_work", "center_sin_work", "center_cos_work", "center_sin_eating_drinking", "first_sleep",
+              "last_sleep"],
+}
+
+
+def tree_probe_gains(Z: np.ndarray, seq: np.ndarray, split: np.ndarray, categories: list[str],
+                     clock: np.ndarray) -> dict:
+    """Gradient-boosted probe: validation R^2 gain from adding a latent to the TRUE totals, per target.
+
+    Trees select informative inputs, so unlike kNN they are not diluted by extra uninformative dimensions.
+    Targets are engineered fragmentation and clock-timing features (TimingFeaturizer fitted on train).
+    """
+    from sklearn.ensemble import HistGradientBoostingRegressor
+
+    tr, va = split == "train", split == "val"
+    tot, _ = totals_features(category_counts(seq, len(categories)), categories)
+    tf = TimingFeaturizer(categories, clock).fit(seq[tr])
+    X, names = tf.transform(seq), tf.names_
+    both = np.hstack([tot, Z])
+    out = {}
+    for group, targets in PROBE_TARGETS.items():
+        gains = {}
+        for t in targets:
+            y = X[:, names.index(t)]
+            r0 = r2_score(y[va], HistGradientBoostingRegressor(random_state=0).fit(tot[tr], y[tr]).predict(tot[va]))
+            r1 = r2_score(y[va], HistGradientBoostingRegressor(random_state=0).fit(both[tr], y[tr]).predict(both[va]))
+            gains[t] = float(r1 - r0)
+        out[group] = {"per_target_gain": gains, "mean_gain": float(np.mean(list(gains.values())))}
+    return out

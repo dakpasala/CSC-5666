@@ -26,8 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src.evaluation.separation import evaluate_separation  # noqa: E402
-from src.models.train import posterior_means, set_seed  # noqa: E402
-from src.models.vae import ScheduleVAE, VAEConfig  # noqa: E402
+from src.models.train import build_model, posterior_means, set_seed  # noqa: E402
 
 VARIANTS = ["guided_inv0.1", "guided_inv1", "guided_inv10", "no_invariance", "invariance_only", "unguided", "joint"]
 
@@ -44,7 +43,7 @@ def untrained_reference(cfg_path: Path, seed: int | None = None) -> dict:
     dcfg = yaml.safe_load((ROOT / cfg["data_config"]).read_text())
     z = np.load(ROOT / dcfg["processed_dir"] / str(cfg["year"]) / "sequences.npz")
     set_seed(cfg["seed"])
-    model = ScheduleVAE(VAEConfig(n_categories=len(z["categories"]), **cfg["model"]),
+    model = build_model({"n_categories": len(z["categories"]), **cfg["model"]},
                         torch.from_numpy(z["clock_features"])).eval()
     emb = posterior_means(model, torch.from_numpy(z["seq"]).long())
     return {"separation": evaluate_separation(model, z["seq"], z["split"], z["categories"].tolist(),

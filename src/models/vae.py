@@ -124,6 +124,12 @@ def gaussian_kl(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
     return 0.5 * (mu.pow(2) + logvar.exp() - 1.0 - logvar)
 
 
+def gaussian_kl_general(mu: torch.Tensor, logvar: torch.Tensor, p_mu: torch.Tensor,
+                        p_logvar: torch.Tensor) -> torch.Tensor:
+    """KL(N(mu, s^2) || N(p_mu, p_s^2)) per sample and dimension: (B, D)."""
+    return 0.5 * (p_logvar - logvar + (logvar.exp() + (mu - p_mu).pow(2)) / p_logvar.exp() - 1.0)
+
+
 def parameter_count(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters())
 

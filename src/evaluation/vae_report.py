@@ -48,6 +48,18 @@ def evaluate_run(run: Path, which: str = "best.pt") -> dict:
     pred_va, logp_va = reconstruct(model, t_va)
     pred_tr, logp_tr = reconstruct(model, t_tr)
     maj = position_majority(z["seq"][z["split"] == "train"], C)       # reference fitted on train split only
+    exact = {}
+    if hasattr(model, "decode_exact"):
+        # v2: hard decoding with exact budgets, from the amount latent and (diagnostic) from observed counts.
+        with torch.no_grad():
+            q = model.encode(t_va)
+            for src, props in (("predicted", None), ("observed", q["props"])):
+                d = model.decode_exact(q["amount_mu"], q["timing_mu"], budget_props=props)
+                m_src = reconstruction_metrics(seq_va, d, C, w)
+                # Soft cross-entropy with this budget source (predicted = fair generative comparison with v1).
+                log_p = model.decode(q["amount_mu"], q["timing_mu"], budget_props=props).numpy()
+                m_src["cross_entropy"] = float(-np.take_along_axis(log_p, seq_va[..., None].astype(np.int64), -1).mean())
+                exact[f"val_exact_budget_{src}"] = m_src
     maj_va = np.broadcast_to(maj, seq_va.shape)
     metrics = {
         "checkpoint": which, "checkpoint_epoch": ck.get("epoch"),
@@ -55,6 +67,7 @@ def evaluate_run(run: Path, which: str = "best.pt") -> dict:
         "val": reconstruction_metrics(seq_va, pred_va, C, w, logp_va),
         "train_subset": reconstruction_metrics(seq_tr, pred_tr, C, w, logp_tr),
         "val_position_majority_reference": reconstruction_metrics(seq_va, maj_va, C, w),
+        **exact,
         "categories": cats,
     }
 
@@ -85,6 +98,11 @@ def evaluate_run(run: Path, which: str = "best.pt") -> dict:
     }
 
     (run / f"eval_{Path(which).stem}.json").write_text(json.dumps(metrics, indent=2))
+    if hasattr(model, "decode_exact"):
+        # v2 decodes with exact budgets from its own amount latent (the generative path).
+        with torch.no_grad():
+            q = model.encode(t_va)
+            pred_va = model.decode_exact(q["amount_mu"], q["timing_mu"])
     plot_reconstructions(run, cfg, seq_va, pred_va, cats, int(z["diary_start_clock_minute"]), w)
     plot_history(run)
     return metrics

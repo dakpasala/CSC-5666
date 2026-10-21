@@ -31,9 +31,9 @@ from src.data.pairs import PairConfig, make_pairs  # noqa: E402
 from src.evaluation.vae_report import evaluate_run  # noqa: E402
 from src.models.losses import LossWeights  # noqa: E402
 from src.models.train import (  # noqa: E402
-    load_checkpoint, pick_device, posterior_means, set_seed, subset_indices, train,
+    build_model, load_checkpoint, pick_device, posterior_means, set_seed, subset_indices, train,
 )
-from src.models.vae import ScheduleVAE, VAEConfig, parameter_count  # noqa: E402
+from src.models.vae import parameter_count  # noqa: E402
 
 
 def main() -> None:
@@ -76,8 +76,8 @@ def main() -> None:
                                                      "val": z["case_ids"][va_idx].tolist()}))
     shutil.copy(npz_path.parent / "category_mapping.yaml", run / "category_mapping.yaml")
 
-    mcfg = VAEConfig(n_categories=len(z["categories"]), n_positions=z["seq"].shape[1], **cfg["model"])
-    model = ScheduleVAE(mcfg, torch.from_numpy(z["clock_features"])).to(device)
+    model = build_model({"n_categories": len(z["categories"]), "n_positions": z["seq"].shape[1], **cfg["model"]},
+                        torch.from_numpy(z["clock_features"])).to(device)
     print(f"run {run.relative_to(ROOT)}  device={device}  params={parameter_count(model):,}  "
           f"train={len(tr_idx)}  val={len(va_idx)}")
 
