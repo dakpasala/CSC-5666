@@ -4,6 +4,7 @@ Research prototype that learns separate representations of **activity amounts** 
 in American Time Use Survey (ATUS) diaries. See `AGENTS.md` for the research plan and `docs/status.md`
 for progress. Checkpoints 1-5 are complete: data preparation, engineered-feature baselines, an end-to-end VAE, separation
 guidance with ablations, and a pre-registered final evaluation on 2023 (`docs/checkpoint5_results.md`).
+A post-test redesign (model v2) was developed on 2022 and tested once on 2024 (`docs/v2_test_results.md`).
 
 ## Setup
 
@@ -46,6 +47,12 @@ python scripts/compare_checkpoint4.py     # -> docs/checkpoint4_report.md, outpu
 ./scripts/run_final.sh                                   # 12 runs x 80 epochs (~2 h on 8 CPU cores)
 python scripts/evaluate_final.py --target val            # 2022 validation reference
 python scripts/evaluate_final.py --target test --confirm-preregistered   # 2023, only after approval
+
+# 8. Model v2 (post-test redesign): sweep, final runs, evaluation (2024 test only after approval)
+./scripts/run_v2_sweep.sh && python scripts/compare_v2_sweep.py
+./scripts/run_v2_final.sh                                # 3 seeds x 80 epochs
+python scripts/evaluate_v2.py --target val && python scripts/score_v2_criteria.py --target val
+python scripts/evaluate_v2.py --target test --confirm-preregistered && python scripts/score_v2_criteria.py --target test
 
 # Tests (synthetic fixtures + checks on prepared 2022 data when present)
 python -m pytest

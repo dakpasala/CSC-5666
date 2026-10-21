@@ -33,15 +33,13 @@ Last updated: 2026-10-20
   years; the split adds no timing information beyond a joint latent; learned groups are interpretable but
   unstable, and engineered timing features give more stable groups. `docs/checkpoint5_results.md`.
 
-## In progress: model v2 (post-test redesign)
-
-- After the 2023 test, the project owner asked for a model that separates the factors more cleanly. Design:
-  `docs/model_v2_proposal.md`. The amount pathway sees counts only, the timing pathway is conditioned on
-  totals, the decoder is budget-constrained (Sinkhorn) with exact-budget decoding, and a new split/merge
-  transform covers fragmentation.
-- Implemented and tested (27 tests pass); smoke run only. **Not trained yet.**
-- Plan: train/tune on 2022 validation only → new pre-registration → one test on ATUS 2024 (2025 in
-  reserve). The 2023 result stays as the record for v1.
+- **Model v2 (post-test redesign).** The amount pathway sees counts only, the timing pathway is conditioned on
+  totals, and the decoder is budget-constrained (Sinkhorn) with exact-budget decoding; a split/merge transform
+  was added. Swept on 2022 validation (β = 0.3), trained 3 seeds × 80 epochs, pre-registered, then tested once
+  on ATUS 2024: 9 of 12 checks met, exactly as validation predicted. v2 is the best model of individual days
+  (lowest CE, realistic ~15 transitions/day, half the duration error) and its separation works by construction.
+  Its timing latent is less probe-readable than v1's, and groups remain unstable; engineered features stay the
+  best grouping tool. `docs/v2_test_results.md`. 2025 data remain untouched.
 
 ## Next
 
