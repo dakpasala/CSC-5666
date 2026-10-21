@@ -58,6 +58,12 @@ Last updated: 2026-10-21
   reconstruction (accuracy ~0.84) but not group reproducibility. `docs/v3_k_sweep.md`,
   `docs/v3_k_sweep_ensembles.md`.
 
+- **v4 mixture prior (development, 2022 val):** learning groups inside the model (VaDE-style prior on z_timing)
+  did not help. Cross-seed ARI is 0.16-0.19, below v1 + k-means (0.25) and the v1 ensembles (0.25-0.41). The
+  same model is *more* reproducible on null data with no groups (0.31), so reproducibility is not evidence of
+  real types. Separation is unaffected. Fallback adopted: engineered features for groups, the VAE for
+  separation and rhythm analysis. Daily rhythms behave like a continuum. `docs/v4_mixture_plan.md`.
+
 ## Next
 
 - **Checkpoint 6: report and presentation.** Results table, model diagram, example timelines,

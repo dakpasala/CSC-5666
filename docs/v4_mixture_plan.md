@@ -46,3 +46,39 @@ ARI ≈ 0.3-0.4 for every k = 2-10. Training longer (80 epochs) and ensembling d
 **Success** means reproducibility clearly above both the v1 ensembles (~0.4) and the null, with separation
 metrics intact and same-total days still split by rhythm. **Otherwise** we fall back to engineered features
 for grouping and the VAE for separation and rhythm analysis.
+
+## Results (2026-10-21; `docs/v4_results.md`)
+
+Implementation notes:
+- Initialising component variances from the spread of posterior *means* alone made the timing KL jump by
+  more than 1,000× at the switch (smoke test). Component variance was set to that spread plus the average
+  posterior variance, and the switch is now smooth. This was decided before any real run.
+- All 9 runs completed. All components were used; accuracy is about 0.85, as for v1 at 80 epochs.
+
+| Representation (2022 validation) | Cross-seed ARI | ARI on confident days |
+| --- | ---: | ---: |
+| mixture prior, K = 4 | 0.189 ± 0.057 | 0.404 |
+| mixture prior, K = 6 | 0.156 ± 0.008 | 0.332 |
+| **mixture prior, K = 6, null data (no groups by construction)** | **0.312 ± 0.044** | **0.715** |
+| v1 80 ep, single model + k-means (k = 4 / 6) | 0.250 / 0.250 | — |
+| v1 80 ep, 3-model ensembles (k = 4 / 6) | 0.248 / 0.414 | 0.599 / 0.870 |
+
+- **Learning the groups does not make them reproducible.** Cross-seed agreement is lower than v1 + k-means
+  and well below the v1 ensembles, even though the model is about 80% confident in its own assignments.
+- **The null check fails in the informative direction.** The same model gives *more* reproducible groups on
+  synthetic data generated from a single Gaussian latent than on real diaries. Reproducibility here is
+  therefore not evidence of real groups, and the real timing-beyond-totals space shows no more discrete
+  structure than a unimodal null.
+- **The groups still mean something.** On real data they split same-total days by sleep timing (ratio
+  1.8-2.0 vs 1.16 on null data) and explain timing more than totals.
+- **Separation is unharmed.** Amount totals R² 0.91-0.92, amount clock gain ≈ 0, timing clock gain 0.63, both
+  latents used by the decoder, amount latent invariant to shifts (0.02 vs 0.43 for timing).
+
+**Decision (pre-specified fallback):** the mixture prior is not adopted.
+- **For groups,** use engineered timing features (reproducibility 0.82). Learned groups are a description
+  of one partition of a continuum, not stable types.
+- **The VAE (v1, with self-budgeted decoding)** is the tool for amount/timing separation, for detecting
+  rhythm differences among same-total days, and for reconstruction.
+- **Substantive finding:** across k-means, ensembles, longer training and a learned mixture prior, the
+  evidence consistently points to daily rhythms forming a **continuum with clear cores**, not discrete
+  schedule types.
