@@ -50,3 +50,18 @@ fitted on 2022 train rows; 1,627 validation diaries; 179 near-identical-totals p
 Most cross-ensemble disagreement is between G2 and G3: adjacent rhythms on a continuum.
 Figure: `outputs/v3/k_sweep/groups_k4_ensembleA.png` (git-ignored). Because every ATUS test year has now
 been used, this choice of k is a development result. It has not been confirmed on held-out data.
+
+## Correction (2026-10-21): the k = 4 result did not replicate
+
+A follow-up (`docs/v3_k_sweep_ensembles.md`) trained six more v1 models at 80 epochs (identical settings) to
+get three disjoint 80-epoch ensembles, i.e. three pairwise comparisons instead of one.
+
+- At 80 epochs, k = 4 is among the **least** reproducible settings: ARI 0.25 ± 0.01, core days 0.60.
+  The 40-epoch value of 0.52 rested on a single comparison and appears to have been a favourable draw.
+- Across k = 2-10, ensemble reproducibility stays in the 0.25-0.48 range, with no clear optimum. It is
+  non-monotonic and noisy, and longer training does not raise it.
+- Ensembles still roughly double single-model agreement at every k (~0.4 vs ~0.2). Confidently assigned
+  days remain much more reproducible (core ARI 0.6-0.98) than borderline days.
+
+The earlier claim that "k = 4 is the most reproducible useful setting" is withdrawn. The four-group
+description above remains a valid *description* of one ensemble's partition, not a reproducible structure.
