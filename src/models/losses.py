@@ -5,7 +5,7 @@ loss = reconstruction + beta_amount * KL_amount + beta_timing * KL_timing
 
 Reduction convention (fixed so the scale does not drift with sequence length):
 - reconstruction: categorical cross-entropy averaged over positions and diaries (nats per position);
-- KL terms (to N(0, I), or to the learned conditional prior for z_timing in v2): summed over latent dimensions, averaged over diaries, then DIVIDED BY the number of positions.
+- KL terms (to N(0, I); to the learned conditional prior for z_timing in v2; to a learned Gaussian mixture in v4): summed over latent dimensions, averaged over diaries, then DIVIDED BY the number of positions.
   With both betas = 1 the total is the negative ELBO divided by T (nats per position).
 - amount_prediction: cross-entropy between true category proportions and the amount head's softmax.
 - timing_supervision (v3, optional): masked MSE between a timing head on z_timing and engineered clock features
@@ -21,7 +21,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn.functional as F
 
-from .vae import gaussian_kl, gaussian_kl_general, timing_targets
+from .vae import gaussian_kl, gaussian_kl_general, mixture_kl, timing_targets
 
 
 @dataclass
@@ -39,7 +39,10 @@ def schedule_loss(out: dict[str, torch.Tensor], seq: torch.Tensor, w: LossWeight
     C = out["logits"].shape[-1]
     recon = F.cross_entropy(out["logits"].reshape(-1, C), seq.reshape(-1).long())
     kl_a = gaussian_kl(out["amount_mu"], out["amount_logvar"]).sum(1).mean() / T
-    if "timing_prior_mu" in out:   # v2 conditional prior p(z_timing | z_amount)
+    if "mix_mu" in out:            # v4 mixture prior on z_timing
+        kl_t = mixture_kl(out["timing_mu"], out["timing_logvar"], out["z_timing"], out["mix_logits"],
+                          out["mix_mu"], out["mix_logvar"]).mean() / T
+    elif "timing_prior_mu" in out:   # v2 conditional prior p(z_timing | z_amount)
         kl_t = gaussian_kl_general(out["timing_mu"], out["timing_logvar"], out["timing_prior_mu"],
                                    out["timing_prior_logvar"]).sum(1).mean() / T
     else:

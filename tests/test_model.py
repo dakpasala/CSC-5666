@@ -101,3 +101,21 @@ def test_v3_timing_head_and_local_transforms():
         assert p["type"] in ("local_shift", "adjacent_swap", "split_merge", "identity")
         if p["type"] == "local_shift":
             assert 1 <= abs(p["shift"]) <= 12
+
+
+def test_v4_mixture_prior_kl_and_gradients():
+    from src.models.vae import gaussian_kl, mixture_kl
+    torch.manual_seed(0)
+    mu, lv = torch.randn(5, 16), torch.randn(5, 16) * 0.1
+    z = mu + torch.randn_like(mu) * (0.5 * lv).exp()
+    one = mixture_kl(mu, lv, z, torch.zeros(1), torch.zeros(1, 16), torch.zeros(1, 16))
+    assert torch.allclose(one, gaussian_kl(mu, lv).sum(1), atol=1e-5)          # K=1 at N(0,I) == standard KL
+    m, x = small_model(timing_prior="mixture", mixture_k=3), toy_days(6)
+    terms = schedule_loss(m(x), x, LossWeights())
+    assert torch.isfinite(terms["kl_timing"])
+    terms["loss"].backward()
+    assert m.mix_mu.grad.abs().sum() > 0 and m.mix_logits.grad is not None and m.encoder.timing_mu.weight.grad.abs().sum() > 0
+    g = m.mixture_responsibilities(m.encode(x)["timing_mu"])
+    assert g.shape == (6, 3) and torch.allclose(g.sum(1), torch.ones(6))
+    m.mixture_active = False
+    assert "mix_mu" not in m(x)

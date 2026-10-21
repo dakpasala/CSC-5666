@@ -12,6 +12,8 @@ added in Checkpoint 4 (paired transforms + invariance + amount prediction).
 
 from __future__ import annotations
 
+import math
+
 from dataclasses import asdict, dataclass
 
 import torch
@@ -34,6 +36,8 @@ class VAEConfig:
     amount_head_hidden: int = 32
     dropout: float = 0.0
     timing_head: bool = False     # v3 E3: auxiliary head predicting engineered clock features from z_timing
+    timing_prior: str = "standard"  # v4: "standard" N(0, I) or "mixture" (learned Gaussian mixture, VaDE-style)
+    mixture_k: int = 6
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -99,6 +103,13 @@ class ScheduleVAE(nn.Module):
         # Auxiliary proportions head reads z_amount (or the single latent in the joint baseline).
         self.amount_head = nn.Sequential(nn.Linear(cfg.z_amount or cfg.z_timing, cfg.amount_head_hidden), nn.ReLU(),
                                          nn.Linear(cfg.amount_head_hidden, cfg.n_categories))
+        # v4 mixture prior on z_timing: logits of π, component means and log-variances. `mixture_active` is
+        # switched off during pretraining (standard prior), then on after GMM initialisation.
+        self.mixture_active = cfg.timing_prior == "mixture"
+        if cfg.timing_prior == "mixture":
+            self.mix_logits = nn.Parameter(torch.zeros(cfg.mixture_k))
+            self.mix_mu = nn.Parameter(torch.randn(cfg.mixture_k, cfg.z_timing))
+            self.mix_logvar = nn.Parameter(torch.zeros(cfg.mixture_k, cfg.z_timing))
         if cfg.timing_head:
             # Targets: (sin, cos, first, last) for every category except the last (`unknown`); see timing_targets().
             self.timing_head = nn.Sequential(nn.Linear(cfg.z_timing, cfg.amount_head_hidden), nn.ReLU(),
@@ -126,7 +137,13 @@ class ScheduleVAE(nn.Module):
         if self.cfg.timing_head:
             out["timing_pred"] = self.timing_head(zt)
             out["clock"] = self.clock
+        if self.cfg.timing_prior == "mixture" and self.mixture_active:
+            out["mix_logits"], out["mix_mu"], out["mix_logvar"] = self.mix_logits, self.mix_mu, self.mix_logvar
         return out
+
+    def mixture_responsibilities(self, z_timing: torch.Tensor) -> torch.Tensor:
+        """q(c | x) evaluated at z_timing: (B, K). Only for mixture-prior models."""
+        return mixture_gamma(z_timing, self.mix_logits, self.mix_mu, self.mix_logvar)
 
 
 def timing_targets(seq: torch.Tensor, clock: torch.Tensor, n_categories: int) -> tuple[torch.Tensor, torch.Tensor]:
@@ -149,6 +166,26 @@ def timing_targets(seq: torch.Tensor, clock: torch.Tensor, n_categories: int) ->
     targets = torch.cat([sin, cos, first, last], dim=1)
     mask = present.repeat(1, 4)
     return targets * mask, mask
+
+
+def mixture_gamma(z: torch.Tensor, logits: torch.Tensor, mu_c: torch.Tensor, logvar_c: torch.Tensor) -> torch.Tensor:
+    """Responsibilities γ_c ∝ π_c N(z; μ_c, σ_c²) for z (B, D), components (K, D): returns (B, K)."""
+    log_n = -0.5 * (math.log(2 * math.pi) + logvar_c[None] + (z[:, None, :] - mu_c[None]).pow(2) / logvar_c.exp()[None]).sum(-1)
+    return torch.softmax(torch.log_softmax(logits, -1)[None] + log_n, dim=-1)
+
+
+def mixture_kl(mu: torch.Tensor, logvar: torch.Tensor, z: torch.Tensor, logits: torch.Tensor, mu_c: torch.Tensor,
+               logvar_c: torch.Tensor) -> torch.Tensor:
+    """VaDE-style KL of q(z|x) q(c|x) to the mixture prior, per diary: (B,).
+
+    Σ_c γ_c KL(N(mu, e^logvar) ‖ N(μ_c, σ_c²)) + KL(γ ‖ π), with γ = q(c|x) computed at the sampled z.
+    With one component at N(0, I) this equals the standard Gaussian KL.
+    """
+    gamma = mixture_gamma(z, logits, mu_c, logvar_c)                                        # (B, K)
+    kl_c = 0.5 * (logvar_c[None] - logvar[:, None] + (logvar.exp()[:, None] + (mu[:, None] - mu_c[None]).pow(2))
+                  / logvar_c.exp()[None] - 1.0).sum(-1)                                     # (B, K)
+    log_pi = torch.log_softmax(logits, -1)[None]
+    return (gamma * kl_c).sum(-1) + (gamma * (torch.log(gamma.clamp_min(1e-10)) - log_pi)).sum(-1)
 
 
 def gaussian_kl(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:

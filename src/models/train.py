@@ -65,16 +65,20 @@ def evaluate_loss(model: ScheduleVAE, seq: torch.Tensor, w: LossWeights, batch_s
 def train(model: ScheduleVAE, seq_tr: torch.Tensor, seq_va: torch.Tensor, w: LossWeights, epochs: int,
           batch_size: int, lr: float, warmup_epochs: int, seed: int, ckpt_dir: Path,
           log_every: int = 10, pair_fn: Callable[[np.ndarray], tuple[np.ndarray, list[dict]]] | None = None,
-          seq_va_pair: torch.Tensor | None = None) -> list[dict]:
+          seq_va_pair: torch.Tensor | None = None,
+          epoch_hook: Callable[[int, ScheduleVAE], bool] | None = None) -> list[dict]:
     """Adam training. Saves `best.pt` (lowest validation loss at full KL weight) and `last.pt`.
 
     With `pair_fn`, every training batch is paired with fresh total-preserving transforms and the paired
     objective is used; validation then uses the fixed pairs in `seq_va_pair`. Transform types are counted.
+    `epoch_hook(epoch, model)` runs before each epoch; returning True resets best-checkpoint selection.
     """
     opt = torch.optim.Adam(model.parameters(), lr=lr)
     gen = torch.Generator().manual_seed(seed)
     history, best = [], float("inf")
     for epoch in range(epochs):
+        if epoch_hook is not None and epoch_hook(epoch, model):
+            best = float("inf")        # objective changed (e.g. mixture prior switched on): restart model selection
         model.train()
         t0 = time.time()
         scale = kl_scale_at(epoch, warmup_epochs)

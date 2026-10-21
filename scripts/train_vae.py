@@ -98,8 +98,33 @@ def main() -> None:
         seq_va_pair = torch.from_numpy(va_t).long().to(device)
         (run / "val_pairs_params.json").write_text(json.dumps(
             {"pair_config": pcfg.to_dict(), "case_ids": z["case_ids"][va_idx].tolist(), "params": va_params}))
+    epoch_hook = None
+    if cfg["model"].get("timing_prior") == "mixture":
+        # v4: standard prior for `pretrain_epochs`, then initialise the mixture from a diagonal GMM fitted to the
+        # train-split timing posterior means and switch it on (VaDE-style initialisation).
+        pre = int((cfg.get("mixture") or {}).get("pretrain_epochs", 20))
+        model.mixture_active = pre == 0
+
+        def epoch_hook(epoch: int, m) -> bool:
+            if epoch != pre or pre == 0:
+                return False
+            from sklearn.mixture import GaussianMixture
+            pm = posterior_means(m, seq_tr)
+            mu = pm["timing_mu"]
+            gm = GaussianMixture(m.cfg.mixture_k, covariance_type="diag", random_state=seed, n_init=5).fit(mu)
+            # Component variance = spread of posterior means within the component + average posterior variance,
+            # so each component matches the aggregate posterior (fitting means alone makes components far too
+            # narrow and the KL jumps by orders of magnitude at the switch).
+            var = gm.covariances_ + np.exp(pm["timing_logvar"]).mean(0, keepdims=True)
+            with torch.no_grad():
+                m.mix_mu.copy_(torch.as_tensor(gm.means_, dtype=torch.float32))
+                m.mix_logvar.copy_(torch.as_tensor(np.log(var), dtype=torch.float32))
+                m.mix_logits.copy_(torch.as_tensor(np.log(gm.weights_), dtype=torch.float32))
+            m.mixture_active = True
+            print(f"epoch {epoch + 1}: mixture prior on (GMM init, weights {np.round(gm.weights_, 3).tolist()})", flush=True)
+            return True
     history = train(model, seq_tr, seq_va, w, t["epochs"], t["batch_size"], t["lr"], t["kl_warmup_epochs"],
-                    seed, run, t["log_every"], pair_fn=pair_fn, seq_va_pair=seq_va_pair)
+                    seed, run, t["log_every"], pair_fn=pair_fn, seq_va_pair=seq_va_pair, epoch_hook=epoch_hook)
     pd.DataFrame(history).to_csv(run / "history.csv", index=False)
 
     # Reload check: the model still in memory (final weights) vs the same weights reloaded from last.pt.
