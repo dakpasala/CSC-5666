@@ -70,6 +70,10 @@ Last updated: 2026-10-21
   (early/busy ↔ late/consolidated morning) is moderate (ρ 0.70). Axes are about timing, not amounts.
   `docs/continuum_axes.md`.
 
+- **Weekday vs weekend (development, 2022 val):** day type explains ≤ 1.1% of the rhythm axes (weekends differ
+  mainly in work *amounts*); stratifying by day type does not reliably make groups more reproducible.
+  `docs/weekday_weekend.md`.
+
 ## Next
 
 - **Checkpoint 6: report and presentation.** Results table, model diagram, example timelines,
