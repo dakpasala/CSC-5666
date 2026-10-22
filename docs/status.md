@@ -64,6 +64,12 @@ Last updated: 2026-10-21
   real types. Separation is unaffected. Fallback adopted: engineered features for groups, the VAE for
   separation and rhythm analysis. Daily rhythms behave like a continuum. `docs/v4_mixture_plan.md`.
 
+- **Continuum description (development, 2022 val):** instead of hard groups, days are placed on rhythm axes
+  from the v1 timing latent (9 models, train-fitted Procrustes alignment). Axis 1 (earlier- ↔ later-shifted
+  day) is reproducible: consensus ρ = 0.90 and 78% same tercile band (κ 0.67), far above hard-group ARI. Axis 2
+  (early/busy ↔ late/consolidated morning) is moderate (ρ 0.70). Axes are about timing, not amounts.
+  `docs/continuum_axes.md`.
+
 ## Next
 
 - **Checkpoint 6: report and presentation.** Results table, model diagram, example timelines,
