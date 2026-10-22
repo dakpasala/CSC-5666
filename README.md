@@ -4,7 +4,10 @@ Research prototype that learns separate representations of **activity amounts** 
 in American Time Use Survey (ATUS) diaries. See `AGENTS.md` for the research plan and `docs/status.md`
 for progress. Checkpoints 1-5 are complete: data preparation, engineered-feature baselines, an end-to-end VAE, separation
 guidance with ablations, and a pre-registered final evaluation on 2023 (`docs/checkpoint5_results.md`).
-A post-test redesign (model v2) was developed on 2022 and tested once on 2024 (`docs/v2_test_results.md`).
+A post-test redesign (model v2) was developed on 2022 and tested once on 2024 (`docs/v2_test_results.md`), and v3
+(v1 + self-budgeted decoding + ensembles) was tested once on 2025 (`docs/v3_test_results.md`). Later development work
+(group counts, mixture prior, continuum axes, day type, survey weights) is summarized in **`docs/handoff.md`**, the
+best starting point for anyone continuing the project.
 
 ## Setup
 
@@ -53,6 +56,12 @@ python scripts/evaluate_final.py --target test --confirm-preregistered   # 2023,
 ./scripts/run_v2_final.sh                                # 3 seeds x 80 epochs
 python scripts/evaluate_v2.py --target val && python scripts/score_v2_criteria.py --target val
 python scripts/evaluate_v2.py --target test --confirm-preregistered && python scripts/score_v2_criteria.py --target test
+
+# 9. v3 / v4 / continuum / sensitivity analyses (2022 development; full list in docs/handoff.md)
+./scripts/run_v3.sh && python scripts/evaluate_v3.py && python scripts/evaluate_ensembles.py
+python scripts/k_sweep_ensembles.py
+python scripts/make_null_data.py && ./scripts/run_v4.sh && python scripts/evaluate_v4.py
+python scripts/continuum_axes.py && python scripts/weekday_weekend.py && python scripts/weighted_sensitivity.py
 
 # Tests (synthetic fixtures + checks on prepared 2022 data when present)
 python -m pytest

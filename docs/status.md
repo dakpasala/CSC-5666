@@ -74,6 +74,11 @@ Last updated: 2026-10-21
   mainly in work *amounts*); stratifying by day type does not reliably make groups more reproducible.
   `docs/weekday_weekend.md`.
 
+- **Survey weights (development, 2022 val):** with TUFINLWGT and 160 replicate weights (Var = 4/160 Σ…), rhythm-band
+  shares, rhythm measures, group shares and separation metrics barely move. Amounts do (weekends are 48% of
+  diaries but 29% of days; average work 153 → 195 min), so population-facing amounts must be weighted.
+  `docs/weighted_sensitivity.md`.
+
 ## Next
 
 - **Checkpoint 6: report and presentation.** Results table, model diagram, example timelines,
@@ -88,5 +93,4 @@ Last updated: 2026-10-21
 - Whether to add a non-linear totals->timing predictor and a block-weighted totals+timing baseline.
 - How to address oversmoothing (more data first; then beta/decoder changes only if diagnostics justify).
 - v2 choices for validation: β values, conditional prior on/off, budget warm-up, Sinkhorn temperature.
-- Survey weights: prototype is unweighted; weighted sensitivity analysis needed before any
-  population-facing statement.
+- Survey weights: sensitivity check done (`docs/weighted_sensitivity.md`); population-facing amounts must be weighted.

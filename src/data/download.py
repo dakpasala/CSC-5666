@@ -41,6 +41,7 @@ FILE_PATTERNS = {
     "interview_dictionary": r"^atusintcodebk{yy}\.pdf$",
     "lexicon": r"^lexiconwex{year}\.(pdf|xls|xlsx)$",
     "coding_rules": r"^tu{year}coderules\.pdf$",
+    "replicate_weights": r"^atuswgts-{year}\.zip$",
 }
 DEFAULT_KINDS = ["activity", "respondent", "roster", "interview_dictionary", "lexicon"]
 
