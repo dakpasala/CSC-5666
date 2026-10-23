@@ -79,6 +79,12 @@ Last updated: 2026-10-21
   diaries but 29% of days; average work 153 → 195 min), so population-facing amounts must be weighted.
   `docs/weighted_sensitivity.md`.
 
+- **Two-level schedule types (development, 2022):** 5 stable composition day types (work, leisure, home & chores,
+  religious/volunteer, school; ARI 0.93). Within types, timing is a continuum (no density cores; positive
+  control confirms sensitivity to ≥ ~3 SD clusters), except a small real night-work group (~3-4% of work days)
+  that the VAE timing latent encodes almost perfectly (AUC 0.998) but clustering cannot surface.
+  `docs/two_level_types.md`.
+
 ## Next
 
 - **Checkpoint 6: report and presentation.** Results table, model diagram, example timelines,

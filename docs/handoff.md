@@ -19,6 +19,7 @@ We test whether the two separate cleanly, and whether the timing vector reveals 
 | Do amount and timing separate? | **Yes**, and it holds on unseen years | v1/v3 on 2025: amount R² 0.92 with ~0 timing; timing carries clock timing beyond totals (0.62); decoder uses both; 15/16 pre-registered checks (`docs/v3_test_results.md`) |
 | Does the model see rhythm differences among same-total days? | **Yes** | days split by the model differ ~2 h in sleep midpoint vs ~1 h kept together; beats engineered-feature groups on this test |
 | Are there stable discrete schedule *types*? | **No**, the evidence points to a continuum | hard groups agree across model sets at ARI ≈ 0.25-0.41 for any k, longer training or ensembles; a learned mixture prior was *more* reproducible on null data with no groups (`docs/v4_mixture_plan.md`) |
+| Are there types at all? | **Yes, by composition** (5 stable day types); timing within them is a continuum, except a small real night-work group the model encodes (AUC 0.998) but clustering misses | `docs/two_level_types.md` |
 | What should be used instead? | **Continuous rhythm axes** | axis 1 (earlier- ↔ later-shifted day) reproducible at ρ = 0.90, 78% same band (`docs/continuum_axes.md`) |
 | Reconstruction quality | Decent | ~84% slot accuracy (80 epochs); self-budgeted decoding gives realistic days (~13 vs 15 transitions/day) |
 | Robust to day type and survey weights? | Yes, for rhythm results | `docs/weekday_weekend.md`, `docs/weighted_sensitivity.md`; amounts must be weighted for population statements |
@@ -87,6 +88,10 @@ Long runs: launch detached so editor or terminal restarts do not kill them, e.g.
 - **IDs:** read case IDs as strings (`dtype={"case_id": str}`), otherwise joins silently fail.
 - **Mixture prior init:** fitting the GMM to posterior *means* only made the KL jump >1000× at the switch.
   Add the average posterior variance.
+- **macOS OpenMP crash:** PyTorch and scikit-learn each load `libomp`; mixing them in one process can segfault.
+  Set `OMP_NUM_THREADS=1`.
+- **Rare groups:** HDBSCAN with a 5% minimum cluster size cannot find groups smaller than 5%, and the dip test
+  misses small minority modes. Use mixture models or targeted definitions for rare patterns (e.g. night work).
 - **Stability evidence:** always compare against a null. Stable-looking clusters appeared on data with no
   groups.
 
