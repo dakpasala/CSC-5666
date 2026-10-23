@@ -85,6 +85,13 @@ Last updated: 2026-10-21
   that the VAE timing latent encodes almost perfectly (AUC 0.998) but clustering cannot surface.
   `docs/two_level_types.md`.
 
+- **Rare patterns, dashboard, typology (development, 2022 val):** ICA on the timing latent finds strongly
+  non-Gaussian directions (kurtosis up to 13 vs null 0.41). Every one of 9 models has an unsupervised "nocturnal
+  day" direction ranked top 1-7 that separates night work at AUC 0.85-0.92, and a nap direction appears (AUC 0.91).
+  Exact components are not one-to-one reproducible across models. Probes: the timing latent knows clock patterns
+  far beyond totals (night work 0.98, naps 0.95, late riser 0.98) but not fragmentation. Combined typology =
+  composition type × rhythm band × pattern flags. `docs/patterns.md`.
+
 ## Next
 
 - **Checkpoint 6: report and presentation.** Results table, model diagram, example timelines,

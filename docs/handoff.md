@@ -20,6 +20,7 @@ We test whether the two separate cleanly, and whether the timing vector reveals 
 | Does the model see rhythm differences among same-total days? | **Yes** | days split by the model differ ~2 h in sleep midpoint vs ~1 h kept together; beats engineered-feature groups on this test |
 | Are there stable discrete schedule *types*? | **No**, the evidence points to a continuum | hard groups agree across model sets at ARI ≈ 0.25-0.41 for any k, longer training or ensembles; a learned mixture prior was *more* reproducible on null data with no groups (`docs/v4_mixture_plan.md`) |
 | Are there types at all? | **Yes, by composition** (5 stable day types); timing within them is a continuum, except a small real night-work group the model encodes (AUC 0.998) but clustering misses | `docs/two_level_types.md` |
+| Can the model find rare types without labels? | **Partly**: an unsupervised ICA 'nocturnal day' direction appears in all 9 models (night work AUC 0.85-0.92); exact directions differ between models | `docs/patterns.md` |
 | What should be used instead? | **Continuous rhythm axes** | axis 1 (earlier- ↔ later-shifted day) reproducible at ρ = 0.90, 78% same band (`docs/continuum_axes.md`) |
 | Reconstruction quality | Decent | ~84% slot accuracy (80 epochs); self-budgeted decoding gives realistic days (~13 vs 15 transitions/day) |
 | Robust to day type and survey weights? | Yes, for rhythm results | `docs/weekday_weekend.md`, `docs/weighted_sensitivity.md`; amounts must be weighted for population statements |
