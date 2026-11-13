@@ -40,18 +40,34 @@
 
 ## v1 results on 2023 (held out, criteria approved before scoring; 8 of 11 met)
 
-| Result | Value | Comparison | Meaning |
+| Result | Value | Unit | Comparison | Meaning |
+| --- | --- | --- | --- | --- |
+| Slots rebuilt correctly | 84% (macro-F1 0.67) | % of slots | | Decent rebuild |
+| Activity changes per rebuilt day | about 7 | count per day | real days: about 15 | Too smooth; short activities like meals disappear |
+| Totals read from amount vector (R²) | 0.85 | R² (0 to 1) | untrained: 0.71 | Amount vector holds the amounts |
+| Timing hidden in amount vector | 0.008 | R² gain (0 to 1) | limit 0.05 | Amount vector holds almost no timing |
+| Timing beyond totals in timing vector | 0.24 | R² gain (0 to 1) | untrained: 0.002 | Timing vector holds the "when" |
+| Amount vector movement when rearranged | 0.019 to 0.028 | distance ÷ typical gap between days | no pair rule: 0.043 to 0.060 | The pair rule works |
+| Swap test: timing follows B | 79% | % of swaps | no guidance: 67% | The two vectors control different things |
+| Timing info: split vs one vector | 0.24 | R² gain (0 to 1) | joint vector: 0.23 | Failed: the split organizes but adds no information |
+| Group agreement after retraining (ARI) | 0.26 | ARI (0 = chance, 1 = identical) | hand-built features: 0.76 | Failed: groups are not reproducible |
+| Groups split same-total days by timing (AUC) | 0.58 | AUC (0.5 = coin flip) | hand-built features: 0.72 | Failed: groups follow timing only weakly |
+
+## Reading the units
+
+| Unit | Range | Meaning | Better is |
 | --- | --- | --- | --- |
-| Slots rebuilt correctly | 84% (macro-F1 0.67) | | Decent rebuild |
-| Activity changes per rebuilt day | about 7 | real days: about 15 | Too smooth; short activities like meals disappear |
-| Totals read from amount vector (R²) | 0.85 | untrained: 0.71 | Amount vector holds the amounts |
-| Timing hidden in amount vector | 0.008 | limit 0.05 | Amount vector holds almost no timing |
-| Timing beyond totals in timing vector | 0.24 | untrained: 0.002 | Timing vector holds the "when" |
-| Amount vector movement when rearranged | 0.019 to 0.028 | no pair rule: 0.043 to 0.060 | The pair rule works |
-| Swap test: timing follows B | 79% | no guidance: 67% | The two vectors control different things |
-| Timing info: split vs one vector | 0.24 | joint vector: 0.23 | Failed: the split organizes but adds no information |
-| Group agreement after retraining (ARI) | 0.26 | hand-built features: 0.76 | Failed: groups are not reproducible |
-| Groups split same-total days by timing (AUC) | 0.58 | hand-built features: 0.72 | Failed: groups follow timing only weakly |
+| % | 0-100% | share that came out right | higher |
+| R² | 0 to 1 | share of the differences between days a probe explains (0 = guessing the average) | higher, except where a vector should be empty |
+| R² gain | 0 to 1 | extra R² from adding a vector on top of the totals | higher for timing in the timing vector; near 0 for timing in the amount vector |
+| Distance ÷ typical gap | 0 and up | how far a vector moved; 1.0 = as different as two unrelated days | low for the amount vector |
+| ARI | about 0 to 1 | agreement between two groupings (0 = chance, 1 = identical) | higher |
+| AUC | 0.5 to 1 | chance a random pair is ranked the right way round (0.5 = coin flip) | higher |
+| Ratio | 1 and up | one average ÷ another (1 = no difference) | higher |
+| Cross-entropy | 0 and up | rebuild error | lower (higher when a vector is swapped shows it is used) |
+| Count, minutes | as stated | activity changes per day, error in minutes | count close to real; minutes lower |
+
+Different units are different scales: do not compare an ARI with an R² or a Spearman ρ directly.
 
 ## The story in three lines
 
