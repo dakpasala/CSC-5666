@@ -119,3 +119,20 @@ def test_v4_mixture_prior_kl_and_gradients():
     assert g.shape == (6, 3) and torch.allclose(g.sum(1), torch.ones(6))
     m.mixture_active = False
     assert "mix_mu" not in m(x)
+
+
+def test_gru_decoder_shapes_gradients_and_reload(tmp_path):
+    # The GRU decoder reads [latents, clock] in order; it never receives the input activities.
+    m, x = small_model(decoder_type="gru", decoder_layers=1), toy_days(6)
+    out = m(x)
+    assert out["logits"].shape == (6, T, C) and torch.isfinite(out["logits"]).all()
+    schedule_loss(out, x, LossWeights(lambda_amount=1.0))["loss"].backward()
+    for name in ("encoder.amount_mu.weight", "encoder.timing_mu.weight", "decoder.rnn.weight_ih_l0",
+                 "decoder.rnn.weight_ih_l0_reverse", "decoder.out.weight"):
+        g = dict(m.named_parameters())[name].grad
+        assert g is not None and g.abs().sum() > 0, name
+    save_checkpoint(tmp_path / "g.pt", m)
+    r, _ = load_checkpoint(tmp_path / "g.pt")
+    assert r.cfg.decoder_type == "gru"
+    with torch.no_grad():
+        np.testing.assert_allclose(m(x, sample=False)["logits"].numpy(), r(x, sample=False)["logits"].numpy(), atol=1e-6)

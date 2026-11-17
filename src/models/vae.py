@@ -4,6 +4,8 @@ Encoder: activity embedding + clock features -> bidirectional GRU -> mean-pooled
 separate Gaussian heads for an `amount` latent and a `timing` latent.
 Decoder: at each position, an MLP sees [z_amount, z_timing, position features] and outputs category
 logits. It never sees the input sequence, so everything it reconstructs must pass through the latents.
+Optional GRU decoder (decoder_type="gru"): the same inputs read in order by a bidirectional GRU, so neighbouring
+positions can coordinate (block lengths, boundaries). It is not autoregressive: it never sees true activities.
 Amount head: optional auxiliary MLP predicting per-category proportions from z_amount (Checkpoint 4).
 
 Separate heads alone do not make the latents mean "amount" and "timing"; that requires the guidance
@@ -33,6 +35,8 @@ class VAEConfig:
     decoder_hidden: int = 128
     decoder_layers: int = 2
     n_harmonics: int = 4          # Fourier features of clock time given to the decoder
+    decoder_type: str = "mlp"     # "mlp": each position decoded independently; "gru": a bidirectional GRU reads
+                                  # [z_amount, z_timing, position features] in order (never the input activities)
     amount_head_hidden: int = 32
     dropout: float = 0.0
     timing_head: bool = False     # v3 E3: auxiliary head predicting engineered clock features from z_timing
@@ -92,6 +96,26 @@ class Decoder(nn.Module):
         return self.mlp(torch.cat([z, pos[None].expand(B, -1, -1)], dim=-1))   # (B, T, C)
 
 
+class GRUDecoder(nn.Module):
+    """Bidirectional GRU over [z_amount, z_timing, position features] at every position, then a linear layer.
+
+    Inputs are identical at every position except the clock features, so all day-specific information still
+    has to come from the latents. `decoder_layers` sets the GRU depth; `decoder_hidden` is per direction.
+    """
+
+    def __init__(self, cfg: VAEConfig):
+        super().__init__()
+        d = cfg.z_amount + cfg.z_timing + 2 * cfg.n_harmonics
+        self.rnn = nn.GRU(d, cfg.decoder_hidden, num_layers=cfg.decoder_layers, batch_first=True, bidirectional=True)
+        self.out = nn.Linear(2 * cfg.decoder_hidden, cfg.n_categories)
+
+    def forward(self, z_amount: torch.Tensor, z_timing: torch.Tensor, pos: torch.Tensor) -> torch.Tensor:
+        B, T = z_amount.shape[0], pos.shape[0]
+        z = torch.cat([z_amount, z_timing], dim=1)[:, None, :].expand(B, T, -1)
+        h, _ = self.rnn(torch.cat([z, pos[None].expand(B, -1, -1)], dim=-1))
+        return self.out(h)   # (B, T, C)
+
+
 class ScheduleVAE(nn.Module):
     def __init__(self, cfg: VAEConfig, clock: torch.Tensor):
         super().__init__()
@@ -99,7 +123,9 @@ class ScheduleVAE(nn.Module):
         self.register_buffer("clock", clock.float())                                   # (T, 2)
         self.register_buffer("pos", position_features(clock.float(), cfg.n_harmonics))  # (T, 2H)
         self.encoder = Encoder(cfg)
-        self.decoder = Decoder(cfg)
+        if cfg.decoder_type not in ("mlp", "gru"):
+            raise ValueError(f"unknown decoder_type {cfg.decoder_type!r}")
+        self.decoder = GRUDecoder(cfg) if cfg.decoder_type == "gru" else Decoder(cfg)
         # Auxiliary proportions head reads z_amount (or the single latent in the joint baseline).
         self.amount_head = nn.Sequential(nn.Linear(cfg.z_amount or cfg.z_timing, cfg.amount_head_hidden), nn.ReLU(),
                                          nn.Linear(cfg.amount_head_hidden, cfg.n_categories))
