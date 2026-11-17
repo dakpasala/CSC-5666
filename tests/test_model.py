@@ -77,7 +77,7 @@ def test_paired_loss_invariance_and_joint_model():
     t = paired_loss(m, x, x.roll(12, dims=1), LossWeights(lambda_invariance=1.0, lambda_amount=1.0))
     assert torch.isfinite(t["loss"]) and t["amount_invariance"] > 0
     same = paired_loss(m, x, x, LossWeights(lambda_invariance=1.0), sample=False)
-    assert same["amount_invariance"].item() == 0.0
+    assert same["amount_invariance"].item() < 1e-10   # zero up to floating-point rounding (differs by CPU)
     j = small_model(z_amount=0, z_timing=24)
     out = j(x)
     assert out["amount_mu"].shape == (4, 0) and out["logits"].shape == (4, T, C)
