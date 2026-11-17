@@ -1,0 +1,9 @@
+- test our larger models etc etc
+- see the effects of larger models, and see if its better etc
+- some empirical reasoning
+- do some visualization of the latent representation - use umap
+- see the actual things on some sort of visual (in paper)
+- see analysis on the loss function (in paper)
+- more formal way of testing components (in paper)
+- encoded and decoded properly? 
+- 
