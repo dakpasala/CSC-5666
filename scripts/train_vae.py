@@ -62,6 +62,15 @@ def main() -> None:
     tr_idx = subset_indices(z["split"], "train", cfg["data"]["n_train"], seed)
     va_idx = subset_indices(z["split"], "val", cfg["data"]["n_val"], seed)
     assert not set(z["case_ids"][tr_idx]) & set(z["case_ids"][va_idx])
+    # Optional: add every diary of other (already used) years to the TRAINING set only. Validation, model selection
+    # and evaluation stay on the main year's validation split.
+    extra = {}
+    for y in cfg.get("extra_train_years") or []:
+        p = ROOT / dcfg["processed_dir"] / str(y) / "sequences.npz"
+        ze = np.load(p)
+        assert list(ze["categories"]) == list(z["categories"]) and np.allclose(ze["clock_features"], z["clock_features"])
+        assert not set(ze["case_ids"]) & set(z["case_ids"]), f"case IDs of {y} overlap the main year"
+        extra[int(y)] = {"seq": ze["seq"], "case_ids": ze["case_ids"], "path": p}
 
     run = ROOT / cfg["output_dir"] / f"{cfg['name']}-{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}"
     run.mkdir(parents=True, exist_ok=False)
@@ -70,18 +79,22 @@ def main() -> None:
     resolved = {**cfg, "data_settings": dcfg, "sequences_path": str(npz_path.relative_to(ROOT)),
                 "sequences_sha256": hashlib.sha256(npz_path.read_bytes()).hexdigest(),
                 "git_revision": rev, "git_dirty": dirty, "device_used": str(device),
-                "torch_version": str(torch.__version__), "n_train_used": int(len(tr_idx)), "n_val_used": int(len(va_idx))}
+                "torch_version": str(torch.__version__), "n_train_used": int(len(tr_idx)), "n_val_used": int(len(va_idx)),
+                "extra_train": {y: {"path": str(e["path"].relative_to(ROOT)), "n": int(len(e["seq"])),
+                                    "sha256": hashlib.sha256(e["path"].read_bytes()).hexdigest()} for y, e in extra.items()}}
     (run / "resolved_config.yaml").write_text(yaml.safe_dump(resolved, sort_keys=False))
     (run / "subset_ids.json").write_text(json.dumps({"train": z["case_ids"][tr_idx].tolist(),
-                                                     "val": z["case_ids"][va_idx].tolist()}))
+                                                     "val": z["case_ids"][va_idx].tolist(),
+                                                     **{f"train_extra_{y}": e["case_ids"].tolist() for y, e in extra.items()}}))
     shutil.copy(npz_path.parent / "category_mapping.yaml", run / "category_mapping.yaml")
 
     model = build_model({"n_categories": len(z["categories"]), "n_positions": z["seq"].shape[1], **cfg["model"]},
                         torch.from_numpy(z["clock_features"])).to(device)
+    extra_str = "".join(f"+{len(e['seq'])}({y})" for y, e in extra.items())
     print(f"run {run.relative_to(ROOT)}  device={device}  params={parameter_count(model):,}  "
-          f"train={len(tr_idx)}  val={len(va_idx)}")
+          f"train={len(tr_idx)}{extra_str}  val={len(va_idx)}")
 
-    seq_tr = torch.from_numpy(z["seq"][tr_idx]).long().to(device)
+    seq_tr = torch.from_numpy(np.concatenate([z["seq"][tr_idx], *(e["seq"] for e in extra.values())])).long().to(device)
     seq_va = torch.from_numpy(z["seq"][va_idx]).long().to(device)
     w = LossWeights(**cfg["loss"])
     t = cfg["train"]

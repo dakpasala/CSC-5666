@@ -34,6 +34,9 @@ sets_for() {
     K_big3)      echo "model.emb_dim=32 model.hidden_dim=256 model.num_layers=2 model.decoder_hidden=256 model.decoder_layers=3 model.n_harmonics=8" ;;
     # K_big2 encoder with a bidirectional GRU decoder (not autoregressive); 1.08M params vs K_big2's 1.09M.
     D_gru)       echo "model.emb_dim=32 model.hidden_dim=192 model.num_layers=2 model.decoder_type=gru model.decoder_hidden=128 model.decoder_layers=1 model.n_harmonics=8" ;;
+    # K_big2 trained on 2022 train + all 2023 and 2024 diaries (both already used as test years for v1/v2).
+    # Validation and model selection stay on 2022 validation.
+    M_big2)      echo "model.emb_dim=32 model.hidden_dim=192 model.num_layers=2 model.decoder_hidden=256 model.decoder_layers=3 model.n_harmonics=8 extra_train_years=[2023,2024]" ;;
     KZ_big_t32)  echo "model.emb_dim=32 model.hidden_dim=128 model.num_layers=2 model.decoder_hidden=256 model.decoder_layers=3 model.n_harmonics=8 model.z_timing=32" ;;
     *) echo "unknown experiment $1" >&2; exit 1 ;;
   esac
