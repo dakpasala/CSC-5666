@@ -28,6 +28,10 @@ sets_for() {
     Z_t32)       echo "model.z_timing=32" ;;
     Z_a12)       echo "model.z_amount=12" ;;
     Z_t32a12)    echo "model.z_timing=32 model.z_amount=12" ;;
+    # Larger networks (K_big was not overfitting and still improving at 40 epochs). Latents stay 8 + 16.
+    K_big_e80)   echo "model.emb_dim=32 model.hidden_dim=128 model.num_layers=2 model.decoder_hidden=256 model.decoder_layers=3 model.n_harmonics=8 train.epochs=80" ;;
+    K_big2)      echo "model.emb_dim=32 model.hidden_dim=192 model.num_layers=2 model.decoder_hidden=256 model.decoder_layers=3 model.n_harmonics=8" ;;
+    K_big3)      echo "model.emb_dim=32 model.hidden_dim=256 model.num_layers=2 model.decoder_hidden=256 model.decoder_layers=3 model.n_harmonics=8" ;;
     KZ_big_t32)  echo "model.emb_dim=32 model.hidden_dim=128 model.num_layers=2 model.decoder_hidden=256 model.decoder_layers=3 model.n_harmonics=8 model.z_timing=32" ;;
     *) echo "unknown experiment $1" >&2; exit 1 ;;
   esac

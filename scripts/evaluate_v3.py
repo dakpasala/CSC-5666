@@ -51,6 +51,9 @@ GROUPS = {  # name -> glob pattern with {s} for the seed; latest match is used
     "Z_a12": "outputs/v3/Z_a12_s{s}-*",
     "Z_t32a12": "outputs/v3/Z_t32a12_s{s}-*",
     "KZ_big_t32": "outputs/v3/KZ_big_t32_s{s}-*",
+    "K_big_e80": "outputs/v3/K_big_e80_s{s}-*",
+    "K_big2": "outputs/v3/K_big2_s{s}-*",
+    "K_big3": "outputs/v3/K_big3_s{s}-*",
 }
 
 
