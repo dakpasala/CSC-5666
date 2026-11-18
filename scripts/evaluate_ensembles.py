@@ -43,6 +43,7 @@ FAMILIES = {
     "E2_betaT2": {s: f"outputs/v3/E2_betaT2_s{s}-*" for s in (42, 43, 44, 45, 46, 47)},
     "K_big": {s: f"outputs/v3/K_big_s{s}-*" for s in (42, 43, 44, 45, 46, 47)},
     "KZ_big_t32": {s: f"outputs/v3/KZ_big_t32_s{s}-*" for s in (42, 43, 44, 45, 46, 47)},
+    "M_big2": {s: f"outputs/v3/M_big2_s{s}-*" for s in (42, 43, 44, 45, 46, 47)},
 }
 SETS = {"A": (42, 43, 44), "B": (45, 46, 47)}
 

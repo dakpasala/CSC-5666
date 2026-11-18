@@ -14,6 +14,14 @@ with three or more random seeds, and we report the mean and standard deviation a
 and cluster centers are always fitted on 2022 training days only. All counts are unweighted, so they describe
 the survey sample and not the U.S. population.
 
+After these tests we enlarged the model and its training data to address oversmoothing (Section [Method: Choosing
+the model size and data]). The final model has about 1.09 million parameters and is trained on the 2022 training
+split together with all of 2023 and 2024. Because 2023 and 2024 had already served as test years, they became
+training data only after those tests. 2025 is the only year the final model has not seen, but it had already been
+used once to test v3, so the final model's 2025 results are a second evaluation of that year rather than a fresh
+test. As before, we wrote down the checks and their pass lines before scoring 2025. All final-model numbers marked
+"2022 validation" were used to make choices; the 2025 numbers were not.
+
 We compare against four baselines from the same pipeline: k-means on activity totals, k-means on hand-built
 timing features, a VAE with one joint vector of 24 numbers (the standard design closest to ours), and our
 model without the invariance term. We also report an untrained network of the same shape, to show what the
@@ -84,7 +92,16 @@ retraining. On 2025 it gives 12.8 activity changes per day against 15.1 in real 
 error in activity minutes from 25.6 to 10.3. The structured v2, which builds the totals into the decoder, was
 the best model of individual days on 2024 (lowest cross-entropy, 0.409; 15.0 activity changes against 14.8;
 duration error 9.8 minutes), but its timing vector was harder for probes to read (0.55 against 0.64 for v1), so
-we kept v1 with budgeted decoding as the final model.
+we kept the v1 design with budgeted decoding.
+
+The final model, with the same design but a larger network and three years of training data, rebuilds days far
+better. On 2022 validation, averaged over six seeds, its reconstruction cross-entropy falls from 0.546 to 0.311,
+and its budgeted macro-F1 rises from 0.60 to 0.76. Meals, the clearest victim of oversmoothing, are now placed
+within 15 minutes of their true time with an F1 of 0.81, against 0.49 for v3. The average error in activity minutes
+falls from 9.9 to 7.3, and rebuilt days have 13.5 activity changes against 14.8 in real days (12.6 for v3). Even
+the slot-by-slot decoding improves, from 5.8 to 9.7 activity changes per day, so part of the oversmoothing came
+from a model that was too small and trained on too little data. [Insert 2025 values for the final model once
+scored.]
 
 **[Insert Figure: original and rebuilt timelines for 4 to 6 held-out days, showing slot-by-slot and budgeted decoding]**
 
@@ -104,6 +121,15 @@ the hand-built features (0.82). The ensemble groups do separate days with simila
 strongly than the hand-built groups: days they split differ about twice as much in sleep midpoint as days they
 keep together (ratio 2.0), against 1.28 for the hand-built features.
 
+The final model keeps the ensemble reliability of v3 but loses part of this rhythm advantage. On 2022 validation
+its two ensembles agree at an ARI of 0.36, close to v3's 0.38, even though its single models agree less (0.12
+against 0.19). Its groups, however, follow sleep timing less directly: the sleep-midpoint ratio falls from 1.9 and
+2.2 for v3's two ensembles to 1.56 and 1.47, still above the hand-built features (1.20 on the same validation
+pairs) but no longer clearly ahead of them. One ensemble narrowly misses the pass line of 1.5. The larger model
+seems to describe days in finer detail along directions other than sleep timing, so k-means cuts on its timing
+vector follow the sleep rhythm less closely. We report this as a trade-off: the larger model rebuilds days much
+better, while its groups are about as reproducible but less tied to sleep timing.
+
 **Table 2.** Group reliability (ARI between groupings of the same days).
 
 | Representation | ARI | Year |
@@ -112,7 +138,35 @@ keep together (ratio 2.0), against 1.28 for the hand-built features.
 | Joint vector, single models | 0.279 ± 0.020 | 2023 |
 | v2 timing vector, single models | 0.225 | 2024 |
 | v3 ensembles of 3 models (A vs B) | 0.360 | 2025 |
+| Final model, single models | 0.124 | 2022 validation |
+| Final model, ensembles of 3 models (A vs B) | 0.364 [2025: insert] | 2022 validation |
 | Hand-built timing features | 0.761 ± 0.067 (2023), 0.818 (2025) | 2023, 2025 |
+
+**Table 3.** The 16 pre-registered v3 checks for v3 and the final model. Six models per version; ensembles
+A = seeds 42-44, B = 45-47. Probes, scalers and centroids fitted on 2022 training days only.
+
+| Check | Pass line | v3, 2022 val. | v3, 2025 | Final, 2022 val. | Final, 2025 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| S1 Totals readable from amount vector (R²) | ≥ 0.85 | 0.916 | 0.923 | 0.906 | [ ] |
+| S2 Timing in amount vector | ≤ 0.05 | 0.014 | 0.015 | 0.004 | [ ] |
+| S3 Timing beyond totals in timing vector | ≥ 0.50 | 0.627 | 0.618 | 0.599 | [ ] |
+| S4 Totals in timing vector | ≤ ½ of clock features | 0.285 | 0.279 | 0.243 | [ ] |
+| S5a Error with another day's amount vector | ≥ 2 × own | 3.48 (own 0.55) | 3.43 (own 0.57) | 4.01 (own 0.31) | [ ] |
+| S5b Error with another day's timing vector | ≥ 2 × own | 2.18 | 2.30 | 3.06 | [ ] |
+| S6a Amount moves under shift | ≤ ¼ of timing | 0.019 | 0.019 | 0.015 | [ ] |
+| S6b Amount moves under swap | ≤ ¼ of timing | 0.029 | 0.029 | 0.025 | [ ] |
+| P1 Ensembles agree (ARI) | ≥ 0.30 | 0.384 | 0.360 | 0.364 | [ ] |
+| P2 Ensembles beat single models | ≥ 1.5 × single | 0.384 | 0.360 | 0.364 | [ ] |
+| P3a Sleep-midpoint ratio, ensemble A | ≥ 1.5 | 1.93 | 2.00 | 1.56 | [ ] |
+| P3b Sleep-midpoint ratio, ensemble B | ≥ 1.5 | 2.19 | 1.95 | **1.47** | [ ] |
+| P4 Group splits follow timing (AUC) | ≥ 0.58 | 0.611 | 0.589 | 0.591 | [ ] |
+| P5 As reliable as hand-built features | ≥ 0.82 | **0.384** | **0.360** | **0.364** | [ ] |
+| R1 Activity changes per rebuilt day | within 20% of real | 12.6 | 12.8 | 13.5 | [ ] |
+| R2 Duration error, budgeted (minutes) | ≤ 0.6 × argmax | 9.9 | 10.3 | 7.3 | [ ] |
+| **Checks met** | | **15 of 16** | **15 of 16** | **14 of 16** | [ ] |
+
+*Bold values miss their pass line. The R2 pass line for the final model is stricter than for v3 because its
+slot-by-slot decoding is already much better (12.8 against 25.2 minutes).*
 
 ## Experiment 5: Why the groups are unstable (2022 validation only)
 
@@ -137,14 +191,18 @@ activity amounts.
 ## Summary of findings
 
 Across three held-out years, the separation between amount and timing worked as designed and transferred
-without loss. The model rebuilds days well once short activities are given their expected time. The split does
+without loss. The model rebuilds days well once short activities are given their expected time, and a larger
+network trained on more years of data rebuilds them far better while keeping the separation clean. The split does
 not add timing information beyond a single joint vector, and hard groups from the timing vectors are less
-reliable than groups from hand-built features. Follow-up analysis suggests the reason is that daily timing is a
-continuum, which the timing vector describes well as a continuous scale but not as separate types.
+reliable than groups from hand-built features, for the smaller and the larger model alike. Follow-up analysis
+suggests the reason is that daily timing is a continuum, which the timing vector describes well as a continuous
+scale but not as separate types. The larger model's groups follow sleep timing less directly than v3's.
 
 ---
 
 *Sources: `docs/final_results_test.md` and `docs/checkpoint5_results.md` (2023), `docs/v2_test_results.md`
 (2024), `docs/v3_test_results.md` (2025), `docs/checkpoint5_robustness_notes.md` (λ sweep),
 `docs/v3_results.md`, `docs/v4_results.md`, `docs/continuum_axes.md`, `docs/two_level_types.md`,
-`docs/patterns.md`, `docs/weekday_weekend.md`, `docs/weighted_sensitivity.md`.*
+`docs/patterns.md`, `docs/weekday_weekend.md`, `docs/weighted_sensitivity.md`. Final model:
+`docs/v3_mbig2_final_val.md` (16 checks, 2022 validation), `docs/v3_final_val.md` (v3 on the same checks),
+`docs/v3_final_ensembles.md` (ensembles), `docs/v3_round5_results.md`.*
