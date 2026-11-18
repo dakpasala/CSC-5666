@@ -65,6 +65,14 @@ organization of the information, with a part that tracks totals and ignores rear
 
 *(The untrained amount vector barely moves because it barely encodes anything; it fails the totals row.)*
 
+![Figure 3](../visuals/fig3_pair_test.png)
+
+*Figure 3. Movement of each vector when a validation day is shifted or has two blocks swapped, relative to the typical distance between two random days (six-seed means, 2022 validation). The amount vector stays almost still while the timing vector moves.*
+
+![Figure 4](../visuals/fig4_embeddings.png)
+
+*Figure 4. The first two principal components of each vector for 1,627 validation days (final model, seed 42). The amount vector separates days by hours of work; the timing vector shows a gradient with sleep timing.*
+
 ## Experiment 2: Ablations and sensitivity to the loss weights
 
 Comparing the columns of Table 1 separates the two guidance terms. The amount prediction head does most of the
@@ -103,7 +111,9 @@ the slot-by-slot decoding improves, from 5.8 to 9.7 activity changes per day, so
 from a model that was too small and trained on too little data. [Insert 2025 values for the final model once
 scored.]
 
-**[Insert Figure: original and rebuilt timelines for 4 to 6 held-out days, showing slot-by-slot and budgeted decoding]**
+![Figure 5](../visuals/fig2_reconstructions.png)
+
+*Figure 5. Four validation days chosen at random (two work days, two non-work days), rebuilt by v3 with slot-by-slot and budgeted decoding and by the final model with budgeted decoding. Slot-by-slot decoding drops short activities; the final model keeps most of them in the right place.*
 
 ## Experiment 4: Do the timing vectors form stable groups?
 
@@ -168,25 +178,44 @@ A = seeds 42-44, B = 45-47. Probes, scalers and centroids fitted on 2022 trainin
 *Bold values miss their pass line. The R2 pass line for the final model is stricter than for v3 because its
 slot-by-slot decoding is already much better (12.8 against 25.2 minutes).*
 
+![Figure 6](../visuals/fig5_ensemble_groups.png)
+
+*Figure 6. The six groups found by two independent ensembles of the final model (A = seeds 42-44, B = seeds 45-47), shown as the share of each activity by time of day. Group numbers in B are matched to A for display only.*
+
+![Figure 7](../visuals/fig5b_group_overlap.png)
+
+*Figure 7. Where each ensemble-A group's validation days land in ensemble B. Between 59% and 72% of each group's days stay together (ARI 0.36); a perfect match would be a diagonal of 100%.*
+
 ## Experiment 5: Why the groups are unstable (2022 validation only)
 
 These follow-up checks were done after the test years had been used, so they come from 2022 validation data
-only and are exploratory. We varied the number of groups from 2 to 10 and found no k with clearly better
+only and are exploratory. Unless stated otherwise they use the v3-size models. We varied the number of groups from 2 to 10 and found no k with clearly better
 reliability (about 0.3 to 0.4 throughout). A model that learns groups inside its prior (a Gaussian mixture on
 the timing vector) agreed across seeds at only 0.16 to 0.19, and was more reproducible on simulated data with no
 groups at all (0.31). This null check shows that moderate agreement alone is not evidence of real types.
 
 The evidence points to timing varying along a continuum. When we instead give each day a score on the main
-direction of variation in the timing vectors, aligned across nine models, the scores agree closely (Spearman
-ρ = 0.90 between independent model sets, with 78% of days in the same third). This axis runs from
-earlier-shifted to later-shifted days and is nearly unrelated to the activity totals (|ρ| ≤ 0.16). Grouping by
+direction of variation in the timing vectors, aligned across nine v3-size models, the scores agree closely
+(Spearman ρ = 0.90 between independent model sets, with 78% of days in the same third). This axis runs from
+earlier-shifted to later-shifted days and is nearly unrelated to the activity totals (|ρ| ≤ 0.16). The final
+model reproduces the axis less closely: its two ensembles agree at ρ = 0.78, with 65% of days in the same third
+(Cohen's κ 0.48, against 0.67 for the v3-size models), and the axis stays unrelated to the totals (|ρ| ≤ 0.20).
+This is still far more consistent than its hard groups (ARI 0.36), so the continuum reading holds for the larger
+model as well, but its main timing direction is a weaker summary of sleep timing (ρ = 0.37 with the sleep
+midpoint), in line with its weaker sleep-midpoint ratio in Experiment 4. Grouping by
 what a day is spent on, rather than when, gives five very stable types (bootstrap ARI 0.93): work, leisure,
 home and chores, religious or volunteer, and school days. Specific patterns can also be read from the timing
-vector: a probe separates night-work days with AUC 0.98, and naps with AUC 0.95. Day of week explains at most
+vector of the v3-size models: a probe separates night-work days with AUC 0.98, and naps with AUC 0.95. Day of week explains at most
 1.1% of the rhythm axes, and survey weights barely change the rhythm results, though they do change the
 activity amounts.
 
-**[Insert Figure: optional, day scores on rhythm axis 1, or the six group profiles over the day]**
+![Figure 8](../visuals/fig6_rhythm_axis_agreement.png)
+
+*Figure 8. Early-to-late score for each validation day from two independent ensembles of the final model (Spearman ρ = 0.78). The models largely agree on the order of days even though their hard groups agree only moderately. The ρ = 0.90 in the text is for consensus sets of nine v1 models; the larger final model agrees less on this axis, consistent with its groups following sleep timing less directly.*
+
+![Figure 9](../visuals/fig6b_rhythm_bands.png)
+
+*Figure 9. The average validation day in the earliest, middle and latest third by the early-to-late score (final model, ensemble A; cut points fixed on training days).*
 
 ## Summary of findings
 

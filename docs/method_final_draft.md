@@ -36,6 +36,10 @@ Because the decoder is never given the original activity sequence, everything it
 latent vectors. A separate, smaller network, the amount head, uses the amount vector to predict what share of the
 day was spent on each activity. The full model has about 1.09 million parameters.
 
+![Figure 1](../visuals/fig1_architecture.png)
+
+*Figure 1. The final model. The encoder reads the 288 slots of a day and produces an amount vector (8 numbers) and a timing vector (16 numbers); the decoder rebuilds every slot from those 24 numbers and the clock alone, and budgeted decoding turns its probabilities into a day. The amount head predicts activity shares from the amount vector during training.*
+
 For every diary in a training batch, we create a rearranged copy. Half of the copies shift the entire schedule by 30
 minutes to two hours in either direction. The rest swap two activity blocks, never moving the blocks that touch the
 4:00 a.m. boundary. We confirm that each copy contains the same number of slots for each activity as the original
@@ -111,6 +115,10 @@ two separation checks that the size of the latent vectors affects most.
 
 *Information columns are probe R² values on 2022 validation; lower is cleaner. Our pass limits were 0.05 for timing
 in the amount vector and 0.38 for totals in the timing vector.*
+
+![Figure 2](../visuals/fig7_model_selection.png)
+
+*Figure 2. Validation reconstruction error against model size (2022 validation, three seeds each). Enlarging the network helps up to about one million parameters and then levels off; a GRU decoder and longer training help less than training the same network on more years of data (star).*
 
 The encoder mattered most. Widening the GRU to 128 units per direction gave the largest single improvement, and a
 second GRU layer helped further. Enlarging the decoder or the embedding helped only slightly, and adding clock
